@@ -1,46 +1,22 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::rendering::basics::*;
 use bytemuck::{Pod, Zeroable};
 use glyphon::{Cache, TextAtlas, TextRenderer};
+use hyst_math::vectors::Rgba;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-
 use wgpu::{
     Adapter, BackendOptions, Backends, BindGroup, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutEntry, Buffer, BufferDescriptor, BufferUsages, Device, Instance, InstanceFlags,
-    Origin3d, Queue, RenderPipeline, Sampler, SamplerBindingType, ShaderStages, Surface,
-    SurfaceConfiguration, Texture, TextureDescriptor, TextureSampleType, TextureView,
-    TextureViewDescriptor, TextureViewDimension, VertexBufferLayout,
+    Origin3d, Queue, RenderPipeline, ShaderModule, ShaderStages, Surface, SurfaceConfiguration,
+    TextureDescriptor, TextureViewDescriptor, VertexBufferLayout,
 };
 use winit::window::Window;
 
 use crate::{
-    mesh::Mesh,
-    rgba::Rgba,
     shaders::{HystConstructor, ShaderCreationOptions},
     ui::HystElement,
 };
-
-///Used to define bind group and layout configs
-pub enum BindGroupAndLayoutConfig<'a> {
-    Uniform(ShaderStages, &'a Buffer),
-    Texutre(TextureViewDimension, TextureSampleType, &'a TextureView),
-    Sampler(SamplerBindingType, &'a Sampler),
-}
-
-pub struct GpuImage {
-    view: TextureView,
-    diffuse_sampler: Sampler,
-    texture: Texture,
-}
-
-impl GpuImage {
-    pub fn view(&self) -> &TextureView {
-        &self.view
-    }
-    pub fn sampler(&self) -> &Sampler {
-        &self.diffuse_sampler
-    }
-}
 
 pub struct RenderingCore {
     instance: Instance,
@@ -51,6 +27,7 @@ pub struct RenderingCore {
     config: SurfaceConfiguration,
     text_renderer: TextRenderer,
     pipelines: HashMap<&'static str, Arc<RenderPipeline>>,
+    shaders: HashMap<&'static str, Arc<ShaderModule>>,
 }
 
 impl RenderingCore {
@@ -108,6 +85,7 @@ impl RenderingCore {
             ),
             device,
             pipelines: HashMap::new(),
+            shaders: HashMap::new(),
         }
     }
 
@@ -129,12 +107,13 @@ impl RenderingCore {
     where
         S: HystConstructor + Sized,
     {
-        let module = self.create_module(&options.source, Some(&options.name));
         let (bind_groups, layouts) =
             self.create_bind_groups_and_layouts(options.bind_group_configs, Some(&options.name));
-        if let Some(pipeline) = self.pipelines.get(S::name()) {
-            S::new(module, bind_groups, layouts, pipeline.clone())
+        if let Some(module) = self.shaders.get(S::name()) {
+            let pipeline = self.pipelines.get(S::name()).unwrap();
+            S::new(module.clone(), bind_groups, layouts, pipeline.clone())
         } else {
+            let module = Arc::new(self.create_module(&options.source, Some(&options.name)));
             let pipeline = self.create_default_pipeline(
                 &module,
                 Some(&options.name),
@@ -144,6 +123,7 @@ impl RenderingCore {
             );
             let pipeline = Arc::new(pipeline);
             self.pipelines.insert(S::name(), pipeline.clone());
+            self.shaders.insert(S::name(), module.clone());
             S::new(module, bind_groups, layouts, pipeline)
         }
     }
@@ -389,7 +369,7 @@ impl RenderingCore {
             size3d,
         );
         let view = texture.create_view(&TextureViewDescriptor::default());
-        let diffuse_sampler = self.device.create_sampler(&wgpu::SamplerDescriptor {
+        let sampler = self.device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -398,11 +378,7 @@ impl RenderingCore {
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
-        GpuImage {
-            view,
-            diffuse_sampler,
-            texture,
-        }
+        GpuImage::new(texture, sampler, view)
     }
 
     pub fn draw(&self, elements: &[&HystElement], bg: Rgba) {

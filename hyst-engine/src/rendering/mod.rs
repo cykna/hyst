@@ -1,11 +1,10 @@
 pub mod background;
+mod basics;
 pub mod core;
-pub mod element;
-pub mod mesh;
+pub mod elements;
+mod helpers;
 pub mod meshes;
-pub mod rectangle;
-pub mod rgba;
 pub mod shaders;
 pub mod ui;
-pub mod vec2;
-pub mod vec4;
+pub(crate) use basics::*;
+pub(crate) use helpers::*;

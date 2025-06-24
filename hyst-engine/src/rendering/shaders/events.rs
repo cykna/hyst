@@ -2,7 +2,7 @@
 
 use winit::dpi::PhysicalSize;
 
-use crate::{core::RenderingCore, element::HystBox, mesh::Mesh, ui::HystUi};
+use crate::ui::HystUi;
 
 pub trait ShaderEvent: 'static {
     fn on_executed(&self, target: &mut HystUi);

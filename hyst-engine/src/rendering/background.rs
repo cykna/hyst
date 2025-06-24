@@ -1,5 +1,6 @@
-use crate::vec4::Vec4f32;
+use hyst_math::vectors::Vec4f32;
 
+#[derive(Debug, Clone)]
 pub enum Background {
     Transparent,
     Solid(Vec4f32),

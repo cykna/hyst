@@ -1,17 +1,22 @@
-use std::{iter::FilterMap, path::Path};
+mod options;
+use ahash::RandomState;
+pub use options::*;
 
-use slotmap::{DefaultKey, SlotMap};
+use slotmap::SlotMap;
+use smol_str::SmolStr;
+use taffy::Style;
 use wgpu::RenderPass;
 
 use crate::{
     background::Background,
     core::RenderingCore,
-    element::HystBox,
-    mesh::{Mesh, SizeMethod},
-    meshes::{container::Container, image::Image},
-    rectangle::Rect,
-    vec4::Vec4f32,
+    elements::{HystBox, HystBoxCreationOption, HystElementImageCreationOption, HystImage},
+    meshes::{
+        Mesh, SizeMethod,
+        image::{HystImageCreationOption, Image},
+    },
 };
+use hyst_math::{Rect, vectors::Vec4f32};
 
 pub trait HystUiElement: Sized {
     fn new(core: &mut RenderingCore, options: HystElementOptions) -> Self;
@@ -25,48 +30,12 @@ pub struct HystElementOptions {
     pub key: HystElementKey,
 }
 
-pub struct HystBoxCreationOption {
-    pub size_method: SizeMethod,
-    pub background: Background,
-    pub rect: Rect,
-}
-
-pub struct HystImageCreationOption {
-    pub rect: Rect,
-    pub source: String,
-}
-
 pub enum HystElement {
     Box(HystBox),
-    Image(Image),
+    Image(HystImage),
 }
 
 impl HystElement {
-    /*pub fn container_mut(&mut self) -> &mut Container {
-        match self {
-            Self::Box(bx) => bx.container_mut(),
-        }
-    }
-    pub fn container(&self) -> &Container {
-        match self {
-            Self::Box(bx) => bx.container(),
-        }
-    }
-    pub fn children(&self) -> &[HystElementKey] {
-        match self {
-            Self::Box(bx) => bx.children(),
-        }
-    }
-    pub fn children_mut(&mut self) -> &mut Vec<HystElementKey> {
-        match self {
-            Self::Box(bx) => bx.children_mut(),
-        }
-    }
-    pub fn size_method(&self) -> SizeMethod {
-        match self {
-            Self::Box(bx) => bx.size_method(),
-        }
-    }*/
     pub fn draw(&self, pass: &mut RenderPass) {
         match self {
             Self::Box(bx) => bx.container().draw(pass),
@@ -77,10 +46,13 @@ impl HystElement {
 
 slotmap::new_key_type! {pub struct HystElementKey;}
 
+type StyleMap = hashbrown::HashMap<SmolStr, Style, RandomState>;
+
 pub struct HystUi {
     core: RenderingCore,
     elements: SlotMap<HystElementKey, HystElement>,
     roots: Vec<HystElementKey>,
+    styles: StyleMap,
     bg: Vec4f32,
 }
 
@@ -90,28 +62,38 @@ impl HystUi {
             core,
             elements: SlotMap::with_key(),
             roots: Vec::new(),
+            styles: StyleMap::with_hasher(RandomState::new()),
             bg,
         }
     }
-    pub fn create_box(&mut self, options: HystBoxCreationOption) {
+    pub fn create_box(&mut self, options: HystBoxOptions) {
         self.elements.insert_with_key(|key| {
             self.roots.push(key);
             HystElement::Box(HystBox::new(
                 &mut self.core,
-                HystElementOptions {
-                    parent: None,
+                HystBoxCreationOption {
+                    background: options.bg,
+                    rect: options.rect,
                     size_method: options.size_method,
-                    background: options.background,
-                    initial_rect: options.rect,
+                    parent: None,
                     key,
                 },
             ))
         });
     }
-    pub fn create_image(&mut self, options: HystImageCreationOption) {
+    pub fn create_image(&mut self, options: HystImageOptions) {
         self.elements.insert_with_key(|key| {
             self.roots.push(key);
-            HystElement::Image(Image::from_configs(&mut self.core, options).unwrap())
+            HystElement::Image(HystImage::new(
+                &mut self.core,
+                HystElementImageCreationOption {
+                    rect: options.rect,
+                    source: options.source,
+                    size_method: options.size_method,
+                    styles: options.styles,
+                    key,
+                },
+            ))
         });
     }
 
@@ -153,16 +135,6 @@ impl HystUi {
         }
         out
     }
-    pub fn insert_forced(&mut self, element: HystElement) {
-        let key = self.elements.insert(element);
-        self.roots.push(key);
-    }
-    pub fn create_children<T>(&mut self, element: HystElementKey)
-    where
-        T: HystUiElement,
-    {
-    }
-
     pub fn draw(&self) {
         let mut children = Vec::new();
         for root in self.roots.iter() {

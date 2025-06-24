@@ -14,3 +14,8 @@ slotmap = "1.0.7"
 taffy = "0.8.3"
 wgpu = "25.0.2"
 winit = "0.30.11"
+
+hyst-math={path="../hyst-math"}
+ahash = "0.8.12"
+hashbrown = "0.15.4"
+smol_str = "0.3.2"

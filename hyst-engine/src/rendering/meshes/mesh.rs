@@ -1,8 +1,9 @@
 use wgpu::RenderPass;
 
-use crate::{meshes::container::AbstractBuffer, rectangle::Rect};
+use crate::rendering::helpers::AbstractBuffer;
+use hyst_math::Rect;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum SizeMethod {
     Physical,
     Percentage(f32, f32),

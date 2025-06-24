@@ -2,11 +2,9 @@ use std::sync::Arc;
 
 use bitmask::bitmask;
 pub mod events;
-mod triangle;
-pub use triangle::*;
 use wgpu::{BindGroup, BindGroupLayout, RenderPipeline, ShaderModule};
 
-use crate::core::BindGroupAndLayoutConfig;
+use crate::rendering::basics::BindGroupAndLayoutConfig;
 
 bitmask! {
     pub mask ShaderRenderMethod:u8 where flags ShaderRenderingStyle {
@@ -84,7 +82,7 @@ pub trait ShaderInput {
 }
 
 pub trait HystShader {
-    fn module(&self) -> &wgpu::ShaderModule;
+    fn module(&self) -> &Arc<wgpu::ShaderModule>;
     fn pipeline(&self) -> &wgpu::RenderPipeline;
     fn bind_group_layouts(&self) -> Option<&[wgpu::BindGroupLayout]> {
         None
@@ -95,7 +93,7 @@ pub trait HystShader {
 }
 pub trait HystConstructor: HystShader {
     fn new(
-        module: ShaderModule,
+        module: Arc<ShaderModule>,
         bindgroups: Vec<BindGroup>,
         layouts: Vec<BindGroupLayout>,
         pipeline: Arc<RenderPipeline>,

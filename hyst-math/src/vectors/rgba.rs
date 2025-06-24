@@ -1,4 +1,4 @@
-use crate::vec4::Vec4f32;
+use crate::vectors::Vec4f32;
 
 pub type Rgba = Vec4f32;
 

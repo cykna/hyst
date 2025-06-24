@@ -1,10 +1,19 @@
 use crate::{
+    AbstractBuffer,
+    background::Background,
     core::RenderingCore,
-    mesh::{Mesh, SizeMethod},
-    meshes::container::{AbstractBuffer, Container},
-    rectangle::Rect,
-    ui::{HystElementKey, HystElementOptions},
+    meshes::{Mesh, SizeMethod, container::Container},
+    ui::HystElementKey,
 };
+use hyst_math::Rect;
+
+pub struct HystBoxCreationOption {
+    pub background: Background,
+    pub rect: Rect,
+    pub size_method: SizeMethod,
+    pub parent: Option<HystElementKey>,
+    pub key: HystElementKey,
+}
 
 pub struct HystBox {
     container: Container,
@@ -15,8 +24,8 @@ pub struct HystBox {
 }
 
 impl HystBox {
-    pub fn new(core: &mut RenderingCore, config: HystElementOptions) -> Self {
-        let container = Container::new(core, config.background, config.initial_rect);
+    pub fn new(core: &mut RenderingCore, config: HystBoxCreationOption) -> Self {
+        let container = Container::new(core, config.background, config.rect);
         Self {
             container,
             size_method: config.size_method,
