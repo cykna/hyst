@@ -1,0 +1,13 @@
+Colocar no github
+Organizar o código de uma forma decente
+
+Implementar children da forma certa e fazer eles reposicionarem a base do parent.
+
+Implementar outros elementos:
+Base -> Imagens. Texto. Scrollables
+O resto é abstração desses. Um botão é só um Texto que eu posso clicar.
+Input é só um texto que muda e é salvo numa variável.
+
+Implementar layout com taffy
+Implementar animações.
+Implementar outros tipos de renderização, talvez instanced meshing pra um elemento e os children
