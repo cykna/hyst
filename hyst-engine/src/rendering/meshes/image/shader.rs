@@ -3,11 +3,12 @@ use std::sync::Arc;
 use super::ImageInput;
 use crate::shaders::{HystConstructor, HystShader};
 
+#[derive(Debug)]
 pub struct ImageShader {
     module: Arc<wgpu::ShaderModule>,
     layouts: Vec<wgpu::BindGroupLayout>,
     bind_groups: Vec<wgpu::BindGroup>,
-    pipeline: std::sync::Arc<wgpu::RenderPipeline>,
+    pipeline: Arc<wgpu::RenderPipeline>,
 }
 
 impl HystShader for ImageShader {

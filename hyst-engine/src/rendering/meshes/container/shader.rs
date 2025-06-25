@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use super::ContainerInput;
-use crate::shaders::{HystConstructor, HystShader, ShaderInput, ShaderRenderMethod};
+use crate::shaders::{HystConstructor, HystShader, ShaderInput};
 
+#[derive(Debug)]
 pub struct ContainerShader {
     module: Arc<wgpu::ShaderModule>,
     bindgroups: Vec<wgpu::BindGroup>,

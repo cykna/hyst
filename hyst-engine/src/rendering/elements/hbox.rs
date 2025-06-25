@@ -2,24 +2,26 @@ use crate::{
     AbstractBuffer,
     background::Background,
     core::RenderingCore,
-    meshes::{Mesh, SizeMethod, container::Container},
+    meshes::{Mesh, container::Container},
     ui::HystElementKey,
 };
 use hyst_math::Rect;
+use taffy::NodeId;
 
 pub struct HystBoxCreationOption {
     pub background: Background,
     pub rect: Rect,
-    pub size_method: SizeMethod,
     pub parent: Option<HystElementKey>,
+    pub style: NodeId,
     pub key: HystElementKey,
 }
 
+#[derive(Debug)]
 pub struct HystBox {
     container: Container,
-    size_method: SizeMethod,
     parent: Option<HystElementKey>,
     children: Vec<HystElementKey>,
+    style: NodeId,
     key: HystElementKey,
 }
 
@@ -28,16 +30,21 @@ impl HystBox {
         let container = Container::new(core, config.background, config.rect);
         Self {
             container,
-            size_method: config.size_method,
             parent: config.parent,
             children: Vec::new(),
             key: config.key,
+            style: config.style,
         }
+    }
+
+    pub fn style(&self) -> NodeId {
+        self.style
     }
 
     pub fn children(&self) -> &[HystElementKey] {
         &self.children
     }
+
     pub fn children_mut(&mut self) -> &mut Vec<HystElementKey> {
         &mut self.children
     }
@@ -56,10 +63,6 @@ impl HystBox {
 
     pub fn container_mut(&mut self) -> &mut Container {
         &mut self.container
-    }
-
-    pub fn size_method(&self) -> SizeMethod {
-        self.size_method
     }
 
     pub fn rect(&mut self) -> &mut AbstractBuffer<Rect> {

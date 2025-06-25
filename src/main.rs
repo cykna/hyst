@@ -3,13 +3,14 @@ use hyst_engine::{
     core::RenderingCore,
     meshes::SizeMethod,
     shaders::events::ShaderEvent,
-    ui::{HystBoxOptions, HystImageOptions, HystUi},
+    ui::{
+        HystBoxOptions, HystUi,
+        smol_str::SmolStr,
+        taffy::{Dimension, Position},
+    },
     winit::{event::WindowEvent, window::Window},
 };
-use hyst_math::{
-    Rect,
-    vectors::{Rgba, Vec2f32, Vec4f32},
-};
+use hyst_math::vectors::{Rgba, Vec4f32};
 pub struct Handler {
     window: Window,
     ui: HystUi,
@@ -19,24 +20,38 @@ impl HystHandler for Handler {
     fn new(window: Window) -> Self {
         let core = RenderingCore::new(&window);
         let mut ui = HystUi::new(core, Rgba::BLACK);
+        ui.create_style(
+            "seupai",
+            hyst_engine::ui::taffy::Style {
+                position: Position::Relative,
+                size: hyst_engine::ui::taffy::Size {
+                    width: Dimension::percent(0.5),
+                    height: Dimension::percent(0.25),
+                },
+                ..Default::default()
+            },
+        );
+        ui.create_style(
+            "suamae",
+            hyst_engine::ui::taffy::Style {
+                position: Position::Relative,
+                size: hyst_engine::ui::taffy::Size {
+                    width: Dimension::length(50.0),
+                    height: Dimension::percent(50.0),
+                },
+                ..Default::default()
+            },
+        );
         ui.create_box(HystBoxOptions {
-            size_method: SizeMethod::Percentage(0.75, 0.5),
             bg: hyst_engine::background::Background::Solid(Vec4f32::new(1.0, 1.0, 0.0, 1.0)),
-            rect: Rect::from_xywh(0.0, 0.0, 0.0, 0.0),
-            styles: Vec::new(),
-        });
+            style: SmolStr::new_inline("suamae"),
+        })
+        .unwrap();
         ui.create_box(HystBoxOptions {
-            size_method: SizeMethod::Physical,
             bg: hyst_engine::background::Background::Solid(Vec4f32::new(1.0, 0.0, 0.0, 1.0)),
-            rect: Rect::from_xywh(50.0, 50.0, 50.0, 50.0),
-            styles: Vec::new(),
-        });
-        ui.create_image(HystImageOptions {
-            rect: Rect::from_xywh(10.0, 10.0, 100.0, 100.0),
-            source: "/home/cycro/Pictures/wallpapers/livinda.png".to_string(),
-            styles: Vec::new(),
-            size_method: SizeMethod::Physical,
-        });
+            style: SmolStr::new_inline("seupai"),
+        })
+        .unwrap();
         Self { ui, window }
     }
     fn on_window_event(

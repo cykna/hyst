@@ -1,5 +1,6 @@
 use wgpu::{Sampler, Texture, TextureView};
 
+#[derive(Debug)]
 pub struct GpuImage {
     view: TextureView,
     sampler: Sampler,

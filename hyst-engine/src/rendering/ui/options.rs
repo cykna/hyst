@@ -1,7 +1,6 @@
-use hyst_math::Rect;
 use smol_str::SmolStr;
 
-use crate::{background::Background, meshes::SizeMethod};
+use crate::background::Background;
 
 //File containing the options the user will need to pass when creating elements.
 //Other options are internals.
@@ -9,14 +8,10 @@ use crate::{background::Background, meshes::SizeMethod};
 #[derive(Debug, Clone)]
 pub struct HystBoxOptions {
     pub bg: Background,
-    pub rect: Rect,
-    pub size_method: SizeMethod,
-    pub styles: Vec<SmolStr>,
+    pub style: SmolStr,
 }
 
 pub struct HystImageOptions {
     pub source: String,
-    pub rect: Rect,
-    pub styles: Vec<SmolStr>,
-    pub size_method: SizeMethod,
+    pub style: SmolStr,
 }

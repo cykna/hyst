@@ -9,12 +9,14 @@ mod input;
 pub use input::*;
 mod shader;
 pub use shader::*;
+use taffy::{Point, Size};
 
 pub struct HystImageCreationOption {
     pub rect: Rect,
     pub source: String,
 }
 
+#[derive(Debug)]
 pub struct Image {
     vertices: AbstractBuffer<[ImageInput; 4]>,
     screen_size: AbstractBuffer<[f32; 2]>,
@@ -122,5 +124,19 @@ impl Mesh for Image {
         pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
         pass.set_vertex_buffer(0, self.vertices.inner_buffer().slice(..));
         pass.draw_indexed(0..self.indices_len, 0, 0..1);
+    }
+    fn resize(&mut self, core: &RenderingCore, screen_size: (f32, f32), layout: &taffy::Layout) {
+        self.screen_size
+            .write_with(core, [screen_size.0, screen_size.1]);
+
+        let rect_buf = self.area_buffer();
+        let rect_mut = rect_buf.inner_mut();
+        let Size { width, height } = layout.size;
+        rect_mut.size_mut().set_coords(width, height);
+
+        let Point { x, y } = layout.location;
+        rect_mut.position_mut().set_coords(x, y);
+
+        rect_buf.write(core);
     }
 }

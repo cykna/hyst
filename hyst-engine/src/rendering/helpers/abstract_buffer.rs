@@ -1,11 +1,11 @@
 use crate::core::RenderingCore;
-use bytemuck::{Pod,Zeroable};
+use bytemuck::{Pod, Zeroable};
 
 pub enum BufferType {
     Vertex,
     Uniform,
 }
-
+#[derive(Debug)]
 pub struct AbstractBuffer<T> {
     inner: T,
     buffer: wgpu::Buffer,
@@ -62,4 +62,4 @@ where
     fn index(&self, index: usize) -> &Self::Output {
         &self.inner[index]
     }
-} 
+}

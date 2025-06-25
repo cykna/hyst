@@ -414,7 +414,6 @@ impl RenderingCore {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-
             for element in elements {
                 element.draw(&mut render_pass);
             }

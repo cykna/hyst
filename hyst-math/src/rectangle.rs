@@ -27,4 +27,10 @@ impl Rect {
     pub fn size(&self) -> &Vec2f32 {
         &self.size
     }
+    pub fn position(&self) -> &Vec2f32 {
+        &self.position
+    }
+    pub fn position_mut(&mut self) -> &mut Vec2f32 {
+        &mut self.position
+    }
 }

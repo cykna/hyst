@@ -1,30 +1,25 @@
 use hyst_math::Rect;
-use smol_str::SmolStr;
+use taffy::NodeId;
 
 use crate::{
     core::RenderingCore,
-    meshes::{
-        SizeMethod,
-        image::{HystImageCreationOption, Image},
-    },
+    meshes::image::{HystImageCreationOption, Image},
     ui::HystElementKey,
 };
 
 pub struct HystElementImageCreationOption {
     pub source: String,
     pub rect: Rect,
-    pub size_method: SizeMethod,
-    pub styles: Vec<SmolStr>,
+    pub style: NodeId,
     pub key: HystElementKey,
 }
-
+#[derive(Debug)]
 pub struct HystImage {
     img: Image,
-    size_method: SizeMethod,
     key: HystElementKey,
     parent: Option<HystElementKey>,
     children: Vec<HystElementKey>,
-    styles: Vec<SmolStr>,
+    style: NodeId,
 }
 
 impl HystImage {
@@ -38,12 +33,23 @@ impl HystImage {
                 },
             )
             .unwrap(),
-            size_method: options.size_method,
             key: options.key,
             parent: None,
             children: Vec::new(),
-            styles: options.styles,
+            style: options.style,
         }
+    }
+
+    pub fn children(&self) -> &[HystElementKey] {
+        &self.children
+    }
+
+    pub fn style(&self) -> NodeId {
+        self.style
+    }
+
+    pub fn parent(&self) -> Option<&HystElementKey> {
+        self.parent.as_ref()
     }
 }
 
