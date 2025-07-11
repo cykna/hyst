@@ -5,6 +5,7 @@ pub use hbox::*;
 mod image;
 pub use image::*;
 use taffy::{Layout, NodeId};
+use wgpu::RenderPass;
 
 use super::{core::RenderingCore, ui::HystElementKey};
 
@@ -17,4 +18,6 @@ pub trait HystElement {
 
     ///Used for when the ui requests this Element to update. Normally due to a Pulse dependency update.
     fn update(&mut self, core: &RenderingCore);
+
+    fn render(&self, pass: &mut RenderPass);
 }

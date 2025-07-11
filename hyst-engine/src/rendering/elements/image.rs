@@ -5,14 +5,14 @@ use crate::{
     core::RenderingCore,
     meshes::{
         Mesh,
-        image::{HystImageCreationOption, Image},
+        image::{Image, ImageCreationOption},
     },
     ui::HystElementKey,
 };
 
 use super::HystElement;
 
-pub struct HystElementImageCreationOption {
+pub struct HystImageCreationOption {
     pub source: String,
     pub rect: Rect,
     pub style: NodeId,
@@ -28,11 +28,11 @@ pub struct HystImage {
 }
 
 impl HystImage {
-    pub fn new(core: &mut RenderingCore, options: HystElementImageCreationOption) -> Self {
+    pub fn new(core: &mut RenderingCore, options: HystImageCreationOption) -> Self {
         Self {
             img: Image::from_configs(
                 core,
-                HystImageCreationOption {
+                ImageCreationOption {
                     rect: options.rect,
                     source: options.source,
                 },
@@ -77,4 +77,7 @@ impl HystElement for HystImage {
         &self.children
     }
     fn update(&mut self, core: &RenderingCore) {}
+    fn render(&self, pass: &mut wgpu::RenderPass) {
+        self.img.draw(pass);
+    }
 }

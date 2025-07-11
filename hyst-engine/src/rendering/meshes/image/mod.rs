@@ -11,7 +11,7 @@ mod shader;
 pub use shader::*;
 use taffy::{Point, Size};
 
-pub struct HystImageCreationOption {
+pub struct ImageCreationOption {
     pub rect: Rect,
     pub source: String,
 }
@@ -30,7 +30,7 @@ pub struct Image {
 impl Image {
     pub fn from_configs(
         core: &mut RenderingCore,
-        configs: HystImageCreationOption,
+        configs: ImageCreationOption,
     ) -> std::io::Result<Self> {
         let img_bytes = std::fs::read(&configs.source)?;
         let img = image::load_from_memory(&img_bytes).unwrap();

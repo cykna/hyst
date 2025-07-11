@@ -13,10 +13,9 @@ use wgpu::{
 };
 use winit::window::Window;
 
-use crate::{
-    shaders::{HystConstructor, ShaderCreationOptions},
-    ui::HystElement,
-};
+use crate::shaders::{HystConstructor, ShaderCreationOptions};
+
+use super::elements::HystElement;
 
 pub struct RenderingCore {
     instance: Instance,
@@ -381,7 +380,7 @@ impl RenderingCore {
         GpuImage::new(texture, sampler, view)
     }
 
-    pub fn draw(&self, elements: &[&HystElement], bg: Rgba) {
+    pub fn draw(&self, elements: &[&Box<dyn HystElement>], bg: Rgba) {
         let frame = self
             .surface
             .get_current_texture()
@@ -415,7 +414,7 @@ impl RenderingCore {
                 occlusion_query_set: None,
             });
             for element in elements {
-                element.draw(&mut render_pass);
+                element.render(&mut render_pass);
             }
         }
 

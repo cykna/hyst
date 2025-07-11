@@ -79,4 +79,7 @@ impl HystElement for HystBox {
         &self.children
     }
     fn update(&mut self, core: &RenderingCore) {}
+    fn render(&self, pass: &mut wgpu::RenderPass) {
+        self.container.draw(pass);
+    }
 }

@@ -20,7 +20,7 @@ impl HystHandler for Handler {
     fn new(window: Window) -> Self {
         let core = RenderingCore::new(&window);
         let mut ui = HystUi::new(core, Rgba::BLACK);
-        ui.create_style(
+        ui.create_layout(
             "seupai",
             hyst_engine::ui::taffy::Style {
                 position: Position::Relative,
@@ -31,13 +31,13 @@ impl HystHandler for Handler {
                 ..Default::default()
             },
         );
-        ui.create_style(
+        ui.create_layout(
             "suamae",
             hyst_engine::ui::taffy::Style {
                 position: Position::Relative,
                 size: hyst_engine::ui::taffy::Size {
                     width: Dimension::length(50.0),
-                    height: Dimension::percent(50.0),
+                    height: Dimension::percent(0.5),
                 },
                 ..Default::default()
             },
@@ -45,11 +45,6 @@ impl HystHandler for Handler {
         ui.create_box(HystBoxOptions {
             bg: hyst_engine::background::Background::Solid(Vec4f32::new(1.0, 1.0, 0.0, 1.0)),
             style: SmolStr::new_inline("suamae"),
-        })
-        .unwrap();
-        ui.create_box(HystBoxOptions {
-            bg: hyst_engine::background::Background::Solid(Vec4f32::new(1.0, 0.0, 0.0, 1.0)),
-            style: SmolStr::new_inline("seupai"),
         })
         .unwrap();
         Self { ui, window }
