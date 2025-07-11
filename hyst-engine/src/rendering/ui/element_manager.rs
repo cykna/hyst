@@ -30,6 +30,7 @@ impl ElementManager {
         }
     }
 
+    #[inline]
     ///Generates a new layout supposing the parent if the given `parent. If it's None, then the element is understood as a Root element
     pub fn generate_layout(
         &mut self,
@@ -39,6 +40,7 @@ impl ElementManager {
         self.layout.create_element_style(parent, name)
     }
 
+    #[inline]
     ///Creates a new layout and maps the given name to it.
     pub fn create_layout(&mut self, name: &str, style: taffy::Style) {
         self.layout.create_style(name.into(), style);
@@ -100,20 +102,36 @@ impl ElementManager {
         })
     }
 
+    #[inline]
     ///Gets the list of all elements in the Ui
     pub fn elements(&self) -> &SlotMap<HystElementKey, Box<dyn HystElement>> {
         &self.elements
     }
 
+    #[inline]
     pub fn elements_mut(&mut self) -> &mut SlotMap<HystElementKey, Box<dyn HystElement>> {
         &mut self.elements
     }
 
+    #[inline]
     ///Gets the keys of the root elements
     pub fn roots_keys(&self) -> &Vec<HystElementKey> {
         &self.roots
     }
 
+    #[inline]
+    ///Gets the element which has the given `key`
+    pub fn get_element(&self, key: HystElementKey) -> Option<&Box<dyn HystElement>> {
+        self.elements.get(key)
+    }
+
+    #[inline]
+    ///Gets the element which has the given `key`
+    pub fn get_element_mut(&mut self, key: HystElementKey) -> Option<&mut Box<dyn HystElement>> {
+        self.elements.get_mut(key)
+    }
+
+    #[inline]
     ///Gets every root element
     pub fn roots(&self) -> Vec<&Box<dyn HystElement>> {
         self.roots
@@ -122,7 +140,7 @@ impl ElementManager {
             .collect()
     }
 
-    ///Gets a vector containing all the children of the element whose the given `key`
+    ///Gets a vector containing all the children of the element which has the given `key`
     pub fn get_children_of(&self, key: HystElementKey) -> Vec<&Box<dyn HystElement>> {
         let mut out = Vec::new();
         if let Some(element) = self.elements.get(key) {

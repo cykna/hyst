@@ -5,14 +5,19 @@ use hyst_engine::{
     shaders::events::ShaderEvent,
     ui::{
         HystBoxOptions, HystUi,
+        pulse::Pulse,
         smol_str::SmolStr,
         taffy::{Dimension, Position},
     },
-    winit::{event::WindowEvent, window::Window},
+    winit::{
+        event::{ElementState, WindowEvent},
+        window::Window,
+    },
 };
 use hyst_math::vectors::{Rgba, Vec4f32};
 pub struct Handler {
     window: Window,
+    pulse: Pulse<u8>,
     ui: HystUi,
 }
 
@@ -42,12 +47,15 @@ impl HystHandler for Handler {
                 ..Default::default()
             },
         );
-        ui.create_box(HystBoxOptions {
-            bg: hyst_engine::background::Background::Solid(Vec4f32::new(1.0, 1.0, 0.0, 1.0)),
-            style: SmolStr::new_inline("suamae"),
-        })
-        .unwrap();
-        Self { ui, window }
+        let bx = ui
+            .create_box(HystBoxOptions {
+                bg: hyst_engine::background::Background::Solid(Vec4f32::new(1.0, 1.0, 0.0, 1.0)),
+                style: SmolStr::new_inline("suamae"),
+            })
+            .unwrap();
+        let mut pulse = ui.create_pulse(5);
+        pulse.add_dependency(bx);
+        Self { ui, pulse, window }
     }
     fn on_window_event(
         &mut self,
@@ -61,8 +69,18 @@ impl HystHandler for Handler {
             WindowEvent::Resized(size) => {
                 size.on_executed(&mut self.ui);
             }
+            WindowEvent::MouseInput {
+                device_id,
+                state,
+                button,
+            } => {
+                if state == ElementState::Pressed {
+                    self.pulse.mutate(|mut n| *n += 1);
+                }
+            }
             _ => {}
         }
+        self.ui.check_for_updates();
     }
 }
 

@@ -43,10 +43,6 @@ impl HystBox {
         &mut self.children
     }
 
-    pub fn key(&self) -> HystElementKey {
-        self.key
-    }
-
     pub fn parent(&self) -> Option<&HystElementKey> {
         self.parent.as_ref()
     }
@@ -69,6 +65,9 @@ impl HystBox {
 }
 
 impl HystElement for HystBox {
+    fn id(&self) -> HystElementKey {
+        self.key
+    }
     fn layout(&self) -> NodeId {
         self.style
     }

@@ -1,17 +1,21 @@
 mod element_manager;
 mod options;
-mod pulse;
-use std::ops::{Deref, DerefMut};
+pub mod pulse;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::mpsc::{Receiver, Sender, channel},
+};
 
 use element_manager::ElementManager;
 pub use options::*;
-use slotmap::SlotMap;
+use pulse::Pulse;
+
 pub use smol_str;
 pub use taffy;
-use taffy::NodeId;
+use winit::event::WindowEvent;
 
 use crate::{core::RenderingCore, error::LayoutError};
-use hyst_math::{Rect, vectors::Vec4f32};
+use hyst_math::vectors::Vec4f32;
 
 slotmap::new_key_type! {pub struct HystElementKey;}
 
@@ -19,17 +23,27 @@ pub struct HystUi {
     core: RenderingCore,
     element_manager: ElementManager,
     bg: Vec4f32,
+    rx: Receiver<HystElementKey>,
+    tx: Sender<HystElementKey>,
 }
 
 ///Struct that manages the creation and modification of elements. Until now the modification can only be done here
 impl HystUi {
     pub fn new(core: RenderingCore, bg: Vec4f32) -> Self {
+        let (tx, rx) = channel();
         Self {
             element_manager: ElementManager::new(),
             core,
             bg,
+            rx,
+            tx,
         }
     }
+
+    pub fn create_pulse<T>(&self, value: T) -> Pulse<T> {
+        Pulse::new(value, self.tx.clone())
+    }
+
     pub fn create_box(&mut self, options: HystBoxOptions) -> Result<HystElementKey, LayoutError> {
         let style = self.generate_layout(None, options.style)?;
         let rect = self.get_rect(style)?;
@@ -70,6 +84,16 @@ impl HystUi {
             children.append(&mut self.get_children_of(*root));
         }
         self.core.draw(&children, self.bg);
+    }
+
+    ///Checks if there are some pending element keys that require updating.
+    pub fn check_for_updates(&mut self) {
+        while let Ok(key) = self.rx.try_recv() {
+            println!("Yeah the element with key {key:?} needs to be updated");
+            if let Some(element) = self.element_manager.get_element_mut(key) {
+                element.update(&self.core);
+            }
+        }
     }
 }
 

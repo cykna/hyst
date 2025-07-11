@@ -10,6 +10,8 @@ use wgpu::RenderPass;
 use super::{core::RenderingCore, ui::HystElementKey};
 
 pub trait HystElement {
+    fn id(&self) -> HystElementKey;
+
     ///Retrieves the Id for the layout of this element. Used for positioning and stuff like that
     fn layout(&self) -> NodeId;
 

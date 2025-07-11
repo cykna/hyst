@@ -1,9 +1,6 @@
 use std::{
-    ops::{AddAssign, Deref, DerefMut, DivAssign, MulAssign, SubAssign},
-    sync::{
-        Arc, RwLock, RwLockReadGuard, RwLockWriteGuard,
-        mpsc::{SendError, Sender},
-    },
+    ops::{AddAssign, DivAssign, MulAssign, SubAssign},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, mpsc::Sender},
 };
 
 use wgpu::naga::FastHashSet;
@@ -32,10 +29,10 @@ impl<T> Pulse<T> {
     ///Executes the given method and tells the ui that an update is required.
     pub fn mutate<F>(&self, f: F)
     where
-        F: Fn(&mut RwLockWriteGuard<T>),
+        F: Fn(RwLockWriteGuard<T>),
     {
-        let mut guard = self.pulse.write().unwrap();
-        f(&mut guard);
+        let guard = self.pulse.write().unwrap();
+        f(guard);
         self.tell_receiver();
     }
 

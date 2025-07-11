@@ -67,6 +67,9 @@ impl std::ops::DerefMut for HystImage {
 }
 
 impl HystElement for HystImage {
+    fn id(&self) -> HystElementKey {
+        self.key
+    }
     fn layout(&self) -> NodeId {
         self.style
     }
