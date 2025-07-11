@@ -3,9 +3,14 @@ use taffy::NodeId;
 
 use crate::{
     core::RenderingCore,
-    meshes::image::{HystImageCreationOption, Image},
+    meshes::{
+        Mesh,
+        image::{HystImageCreationOption, Image},
+    },
     ui::HystElementKey,
 };
+
+use super::HystElement;
 
 pub struct HystElementImageCreationOption {
     pub source: String,
@@ -40,10 +45,6 @@ impl HystImage {
         }
     }
 
-    pub fn children(&self) -> &[HystElementKey] {
-        &self.children
-    }
-
     pub fn style(&self) -> NodeId {
         self.style
     }
@@ -63,4 +64,17 @@ impl std::ops::DerefMut for HystImage {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.img
     }
+}
+
+impl HystElement for HystImage {
+    fn layout(&self) -> NodeId {
+        self.style
+    }
+    fn resize(&mut self, core: &RenderingCore, screen_size: (f32, f32), layout: &taffy::Layout) {
+        self.img.resize(core, screen_size, layout);
+    }
+    fn children(&self) -> &Vec<HystElementKey> {
+        &self.children
+    }
+    fn update(&mut self, core: &RenderingCore) {}
 }

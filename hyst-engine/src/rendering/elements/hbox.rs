@@ -8,6 +8,8 @@ use crate::{
 use hyst_math::Rect;
 use taffy::NodeId;
 
+use super::HystElement;
+
 pub struct HystBoxCreationOption {
     pub background: Background,
     pub rect: Rect,
@@ -37,14 +39,6 @@ impl HystBox {
         }
     }
 
-    pub fn style(&self) -> NodeId {
-        self.style
-    }
-
-    pub fn children(&self) -> &[HystElementKey] {
-        &self.children
-    }
-
     pub fn children_mut(&mut self) -> &mut Vec<HystElementKey> {
         &mut self.children
     }
@@ -72,4 +66,17 @@ impl HystBox {
     pub fn screen_size(&mut self) -> &mut AbstractBuffer<[f32; 2]> {
         self.container.screen_size()
     }
+}
+
+impl HystElement for HystBox {
+    fn layout(&self) -> NodeId {
+        self.style
+    }
+    fn resize(&mut self, core: &RenderingCore, size: (f32, f32), layout: &taffy::Layout) {
+        self.container.resize(core, size, layout);
+    }
+    fn children(&self) -> &Vec<HystElementKey> {
+        &self.children
+    }
+    fn update(&mut self, core: &RenderingCore) {}
 }

@@ -1,67 +1,26 @@
 mod options;
+mod pulse;
 pub use options::*;
 use slotmap::SlotMap;
 pub use smol_str;
 pub use taffy;
-use taffy::{Layout, NodeId};
-use wgpu::RenderPass;
+use taffy::NodeId;
 
 use crate::{
     HystLayout,
     core::RenderingCore,
     elements::{HystBox, HystBoxCreationOption, HystElementImageCreationOption, HystImage},
     error::LayoutError,
-    meshes::Mesh,
 };
 use hyst_math::{Rect, vectors::Vec4f32};
 
-#[derive(Debug)]
-pub enum HystElement {
-    Box(HystBox),
-    Image(HystImage),
-}
-
-impl HystElement {
-    pub fn draw(&self, pass: &mut RenderPass) {
-        match self {
-            Self::Box(bx) => bx.container().draw(pass),
-            Self::Image(img) => img.draw(pass),
-        }
-    }
-    pub fn resize(&mut self, core: &RenderingCore, screen_size: (f32, f32), layout: &Layout) {
-        match self {
-            Self::Box(bx) => bx.container_mut().resize(core, screen_size, layout),
-            Self::Image(img) => img.resize(core, screen_size, layout),
-        }
-    }
-
-    pub fn style(&self) -> taffy::NodeId {
-        match self {
-            Self::Box(bx) => bx.style(),
-            Self::Image(img) => img.style(),
-        }
-    }
-
-    pub fn parent(&self) -> Option<&HystElementKey> {
-        match self {
-            Self::Box(bx) => bx.parent(),
-            Self::Image(img) => img.parent(),
-        }
-    }
-
-    pub fn children(&self) -> &[HystElementKey] {
-        match self {
-            Self::Box(bx) => bx.children(),
-            Self::Image(img) => img.children(),
-        }
-    }
-}
+use super::elements::HystElement;
 
 slotmap::new_key_type! {pub struct HystElementKey;}
 
 pub struct HystUi {
     core: RenderingCore,
-    elements: SlotMap<HystElementKey, HystElement>,
+    elements: SlotMap<HystElementKey, Box<dyn HystElement>>,
     roots: Vec<HystElementKey>,
     layout: HystLayout,
     bg: Vec4f32,
@@ -98,7 +57,7 @@ impl HystUi {
         let rect = self.get_rect(style)?;
         self.elements.insert_with_key(|key| {
             self.roots.push(key);
-            HystElement::Box(HystBox::new(
+            Box::new(HystBox::new(
                 &mut self.core,
                 HystBoxCreationOption {
                     background: options.bg,
@@ -116,7 +75,7 @@ impl HystUi {
         let rect = self.get_rect(style)?;
         self.elements.insert_with_key(|key| {
             self.roots.push(key);
-            HystElement::Image(HystImage::new(
+            Box::new(HystImage::new(
                 &mut self.core,
                 HystElementImageCreationOption {
                     rect,
@@ -129,15 +88,15 @@ impl HystUi {
         Ok(())
     }
 
-    pub fn elements(&self) -> &SlotMap<HystElementKey, HystElement> {
+    pub fn elements(&self) -> &SlotMap<HystElementKey, Box<dyn HystElement>> {
         &self.elements
     }
 
-    pub fn elements_mut(&mut self) -> &mut SlotMap<HystElementKey, HystElement> {
+    pub fn elements_mut(&mut self) -> &mut SlotMap<HystElementKey, Box<dyn HystElement>> {
         &mut self.elements
     }
 
-    pub fn roots(&self) -> Vec<&HystElement> {
+    pub fn roots(&self) -> Vec<&Box<dyn HystElement>> {
         self.roots
             .iter()
             .filter_map(|root| self.elements.get(*root))
@@ -151,7 +110,7 @@ impl HystUi {
         &mut self.core
     }
 
-    pub fn get_children_of(&self, key: HystElementKey) -> Vec<&HystElement> {
+    pub fn get_children_of(&self, key: HystElementKey) -> Vec<&Box<dyn HystElement>> {
         let mut out = Vec::new();
         if let Some(element) = self.elements.get(key) {
             for child_key in element.children() {
@@ -188,7 +147,7 @@ impl HystUi {
             let Some(parent) = self.elements.get_mut(root) else {
                 return;
             };
-            let layout = self.layout.layout_of(parent.style()).unwrap();
+            let layout = self.layout.layout_of(parent.layout()).unwrap();
             parent.resize(&self.core, (width, height), layout);
             parent.children().iter().cloned().collect()
         };
