@@ -87,7 +87,7 @@ impl HystUi {
                 let buffer = text.inner().buffer();
                 let x = text.inner().x();
                 let y = text.inner().y();
-                (buffer.clone(), Vec2f32::new(x, y), text.color())
+                (buffer.clone(), Vec2f32::new(x, y), text.color().cloned())
             })
             .collect::<Vec<_>>();
         self.core.prepare_texts(texts);

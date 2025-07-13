@@ -14,7 +14,7 @@ pub struct HystText {
     layout: NodeId,
     inner: Text,
     content: Pulse<String>,
-    color: Vec4f32,
+    color: Pulse<Vec4f32>,
     children: Vec<HystElementKey>,
 }
 
@@ -25,7 +25,7 @@ pub struct TextCreationOption {
     pub(crate) line_height: f32,
     pub(crate) position: Vec2f32,
     pub(crate) content: Pulse<String>,
-    pub(crate) color: Vec4f32,
+    pub(crate) color: Pulse<Vec4f32>,
 }
 
 impl HystText {
@@ -51,10 +51,10 @@ impl HystText {
     pub fn inner(&self) -> &Text {
         &self.inner
     }
-    pub fn color(&self) -> Vec4f32 {
-        self.color
+    pub fn color(&self) -> &Pulse<Vec4f32> {
+        &self.color
     }
-    pub fn color_mut(&mut self) -> &mut Vec4f32 {
+    pub fn color_mut(&mut self) -> &mut Pulse<Vec4f32> {
         &mut self.color
     }
 }

@@ -48,7 +48,7 @@ impl HystHandler for Handler {
             position: Vec2f32::new(80.0, 80.0),
             style: "suamae".into(),
             font_size: 25.0,
-            color: Vec4f32::new(1.0, 0.0, 0.0, 1.0),
+            color: ui.create_pulse(Vec4f32::new(1.0, 0.0, 0.0, 1.0)),
         })
         .unwrap();
         ui.create_text(hyst_engine::ui::HystTextOptions {
@@ -56,7 +56,7 @@ impl HystHandler for Handler {
             position: Vec2f32::new(40.0, 0.0),
             style: "suamae".into(),
             font_size: 12.0,
-            color: Vec4f32::new(0.0, 1.0, 0.0, 0.5),
+            color: ui.create_pulse(Vec4f32::new(0.0, 1.0, 0.0, 0.5)),
         })
         .unwrap();
 

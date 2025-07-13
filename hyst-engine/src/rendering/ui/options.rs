@@ -24,5 +24,5 @@ pub struct HystTextOptions {
     pub position: Vec2f32,
     pub style: SmolStr,
     pub font_size: f32,
-    pub color: Vec4f32,
+    pub color: Pulse<Vec4f32>,
 }
