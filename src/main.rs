@@ -9,7 +9,7 @@ use hyst_engine::{
     },
     winit::{event::WindowEvent, window::Window},
 };
-use hyst_math::vectors::{Rgba, Vec2f32};
+use hyst_math::vectors::{Rgba, Vec2f32, Vec4f32};
 pub struct Handler {
     window: Window,
     ui: HystUi,
@@ -48,6 +48,15 @@ impl HystHandler for Handler {
             position: Vec2f32::new(80.0, 80.0),
             style: "suamae".into(),
             font_size: 25.0,
+            color: Vec4f32::new(1.0, 0.0, 0.0, 1.0),
+        })
+        .unwrap();
+        ui.create_text(hyst_engine::ui::HystTextOptions {
+            content: text.clone(),
+            position: Vec2f32::new(40.0, 0.0),
+            style: "suamae".into(),
+            font_size: 12.0,
+            color: Vec4f32::new(0.0, 1.0, 0.0, 0.5),
         })
         .unwrap();
 

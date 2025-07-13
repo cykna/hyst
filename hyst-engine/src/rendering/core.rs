@@ -6,7 +6,7 @@ use std::{
 
 use crate::rendering::basics::*;
 use bytemuck::{Pod, Zeroable};
-use hyst_math::vectors::{Rgba, Vec2f32};
+use hyst_math::vectors::{Rgba, Vec2f32, Vec4f32};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use wgpu::{
     Adapter, BackendOptions, Backends, BindGroup, BindGroupEntry, BindGroupLayout,
@@ -392,7 +392,7 @@ impl RenderingCore {
     }
 
     #[inline]
-    pub(crate) fn prepare_texts(&mut self, texts: Vec<(glyphon::Buffer, Vec2f32)>) {
+    pub(crate) fn prepare_texts(&mut self, texts: Vec<(glyphon::Buffer, Vec2f32, Vec4f32)>) {
         self.text_renderer.prepare(&self.device, &self.queue, texts);
     }
 

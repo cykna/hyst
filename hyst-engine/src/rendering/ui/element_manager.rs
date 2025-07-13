@@ -104,6 +104,7 @@ impl ElementManager {
                     line_height: opts.font_size * 0.5,
                     position: opts.position,
                     content: opts.content,
+                    color: opts.color,
                 },
             ))
         }))

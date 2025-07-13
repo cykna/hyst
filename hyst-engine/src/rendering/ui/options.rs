@@ -1,4 +1,4 @@
-use hyst_math::vectors::Vec2f32;
+use hyst_math::vectors::{Vec2f32, Vec4f32};
 use smol_str::SmolStr;
 
 use crate::background::Background;
@@ -24,4 +24,5 @@ pub struct HystTextOptions {
     pub position: Vec2f32,
     pub style: SmolStr,
     pub font_size: f32,
+    pub color: Vec4f32,
 }

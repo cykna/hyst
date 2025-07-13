@@ -2,10 +2,12 @@ use glyphon::{
     Attrs, Buffer, Cache, Color, FontSystem, Metrics, Resolution, SwashCache, TextAtlas,
     TextBounds, TextRenderer, Viewport,
 };
-use hyst_math::vectors::Vec2f32;
+use hyst_math::vectors::{Vec2f32, Vec4f32};
 use wgpu::{Device, Queue, RenderPass, TextureFormat};
 
-use super::meshes::text::Text;
+fn unorm32_to_unorm8(x: u32) -> u8 {
+    ((x as u64 * 255 + 2147483775) >> 32) as u8
+}
 
 ///This struct is used for managning and rendering texts on the screen.
 pub struct TextManager {
@@ -47,7 +49,6 @@ impl TextManager {
             &Attrs::new().family(glyphon::Family::Serif),
             glyphon::Shaping::Basic,
         );
-        println!("vec2({:?},{:?})", self.size.0, self.size.1);
         buffer.set_size(&mut self.font_sys, Some(self.size.0), Some(self.size.1));
         buffer.shape_until_scroll(&mut self.font_sys, true);
         buffer
@@ -71,7 +72,16 @@ impl TextManager {
     }
     #[inline]
     ///Prepare the given texts for rendering
-    pub fn prepare(&mut self, device: &Device, queue: &Queue, texts: Vec<(Buffer, Vec2f32)>) {
+    pub fn prepare(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        texts: Vec<(Buffer, Vec2f32, Vec4f32)>,
+    ) {
+        fn f32_to_unorm(mut n: f32) -> u8 {
+            n = n.clamp(0.0, 1.0) * 4294967295.0;
+            ((n as u64 * 255 + 2147483775) >> 32) as u8
+        }
         self.renderer
             .prepare(
                 device,
@@ -79,10 +89,10 @@ impl TextManager {
                 &mut self.font_sys,
                 &mut self.atlas,
                 &mut self.viewport,
-                texts.iter().map(|(buffer, v2)| glyphon::TextArea {
+                texts.iter().map(|(buffer, v2, color)| glyphon::TextArea {
                     buffer,
-                    left: 0.0,
-                    top: 0.0,
+                    left: v2.x(),
+                    top: v2.y(),
                     scale: 1.0,
                     bounds: {
                         let x = v2.x() as i32;
@@ -91,13 +101,18 @@ impl TextManager {
                             panic!("Buffer should have size. Error found");
                         };
                         TextBounds {
-                            left: 0,
-                            top: 0,
-                            right: 1000 as i32,
-                            bottom: 1000 as i32,
+                            left: x,
+                            top: y,
+                            right: x + w as i32,
+                            bottom: y + h as i32,
                         }
                     },
-                    default_color: Color::rgba(255, 0, 255, 255),
+                    default_color: Color::rgba(
+                        f32_to_unorm(color.x()),
+                        f32_to_unorm(color.y()),
+                        f32_to_unorm(color.z()),
+                        f32_to_unorm(color.w()),
+                    ),
                     custom_glyphs: &[],
                 }),
                 &mut self.swash_cache,
