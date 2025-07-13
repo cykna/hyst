@@ -73,13 +73,18 @@ impl HystElement for HystImage {
     fn layout(&self) -> NodeId {
         self.style
     }
-    fn resize(&mut self, core: &RenderingCore, screen_size: (f32, f32), layout: &taffy::Layout) {
+    fn resize(
+        &mut self,
+        core: &mut RenderingCore,
+        screen_size: (f32, f32),
+        layout: &taffy::Layout,
+    ) {
         self.img.resize(core, screen_size, layout);
     }
     fn children(&self) -> &Vec<HystElementKey> {
         &self.children
     }
-    fn update(&mut self, core: &RenderingCore) {}
+    fn update(&mut self, core: &mut RenderingCore) {}
     fn render(&self, pass: &mut wgpu::RenderPass) {
         self.img.draw(pass);
     }

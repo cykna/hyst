@@ -10,12 +10,12 @@ use element_manager::ElementManager;
 pub use options::*;
 use pulse::Pulse;
 
+use crate::{core::RenderingCore, error::LayoutError};
+use hyst_math::vectors::{Vec2f32, Vec4f32};
 pub use smol_str;
 pub use taffy;
-use winit::event::WindowEvent;
 
-use crate::{core::RenderingCore, error::LayoutError};
-use hyst_math::vectors::Vec4f32;
+use super::elements::HystText;
 
 slotmap::new_key_type! {pub struct HystElementKey;}
 
@@ -42,6 +42,10 @@ impl HystUi {
 
     pub fn create_pulse<T>(&self, value: T) -> Pulse<T> {
         Pulse::new(value, self.tx.clone())
+    }
+
+    pub fn create_text(&mut self, options: HystTextOptions) -> Result<HystElementKey, LayoutError> {
+        self.element_manager.insert_text(&mut self.core, options)
     }
 
     pub fn create_box(&mut self, options: HystBoxOptions) -> Result<HystElementKey, LayoutError> {
@@ -71,11 +75,27 @@ impl HystUi {
     }
     #[inline]
     pub fn resize_roots(&mut self, width: f32, height: f32) {
-        self.element_manager.resize_roots(&self.core, width, height);
+        self.element_manager
+            .resize_roots(&mut self.core, width, height);
     }
 
-    pub fn draw(&self) {
+    fn prepare_texts(&mut self) {
+        let texts = self
+            .text_elements()
+            .iter()
+            .map(|text| {
+                let buffer = text.inner().buffer();
+                let x = text.inner().x();
+                let y = text.inner().y();
+                (buffer.clone(), Vec2f32::new(x, y))
+            })
+            .collect::<Vec<_>>();
+        self.core.prepare_texts(texts);
+    }
+
+    pub fn draw(&mut self) {
         let mut children = Vec::new();
+        self.prepare_texts();
         for root in self.roots_keys().iter() {
             let Some(parent) = self.elements().get(*root) else {
                 continue;
@@ -86,14 +106,18 @@ impl HystUi {
         self.core.draw(&children, self.bg);
     }
 
-    ///Checks if there are some pending element keys that require updating.
-    pub fn check_for_updates(&mut self) {
+    ///Checks if there are some pending element keys that require updating, if so, updates the elements that require.
+    /// # Returns
+    /// * Wheather some element was updated and a draw request is required
+    pub fn check_for_updates(&mut self) -> bool {
+        let mut flag = false;
         while let Ok(key) = self.rx.try_recv() {
-            println!("Yeah the element with key {key:?} needs to be updated");
             if let Some(element) = self.element_manager.get_element_mut(key) {
-                element.update(&self.core);
+                flag = true;
+                element.update(&mut self.core);
             }
         }
+        flag
     }
 }
 

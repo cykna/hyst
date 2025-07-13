@@ -1,24 +1,19 @@
 use hyst_engine::{
     HystHandler, HystWindow,
     core::RenderingCore,
-    meshes::SizeMethod,
     shaders::events::ShaderEvent,
     ui::{
-        HystBoxOptions, HystUi,
+        HystUi,
         pulse::Pulse,
-        smol_str::SmolStr,
         taffy::{Dimension, Position},
     },
-    winit::{
-        event::{ElementState, WindowEvent},
-        window::Window,
-    },
+    winit::{event::WindowEvent, window::Window},
 };
-use hyst_math::vectors::{Rgba, Vec4f32};
+use hyst_math::vectors::{Rgba, Vec2f32};
 pub struct Handler {
     window: Window,
-    pulse: Pulse<u8>,
     ui: HystUi,
+    text: Pulse<String>,
 }
 
 impl HystHandler for Handler {
@@ -47,15 +42,16 @@ impl HystHandler for Handler {
                 ..Default::default()
             },
         );
-        let bx = ui
-            .create_box(HystBoxOptions {
-                bg: hyst_engine::background::Background::Solid(Vec4f32::new(1.0, 1.0, 0.0, 1.0)),
-                style: SmolStr::new_inline("suamae"),
-            })
-            .unwrap();
-        let mut pulse = ui.create_pulse(5);
-        pulse.add_dependency(bx);
-        Self { ui, pulse, window }
+        let text = ui.create_pulse(String::from("Jorge"));
+        ui.create_text(hyst_engine::ui::HystTextOptions {
+            content: text.clone(),
+            position: Vec2f32::new(80.0, 80.0),
+            style: "suamae".into(),
+            font_size: 25.0,
+        })
+        .unwrap();
+
+        Self { ui, window, text }
     }
     fn on_window_event(
         &mut self,
@@ -69,18 +65,18 @@ impl HystHandler for Handler {
             WindowEvent::Resized(size) => {
                 size.on_executed(&mut self.ui);
             }
-            WindowEvent::MouseInput {
+            WindowEvent::KeyboardInput {
                 device_id,
-                state,
-                button,
+                event,
+                is_synthetic,
             } => {
-                if state == ElementState::Pressed {
-                    self.pulse.mutate(|mut n| *n += 1);
-                }
+                self.text.mutate(|mut t| t.push('e'));
             }
             _ => {}
         }
-        self.ui.check_for_updates();
+        if self.ui.check_for_updates() {
+            self.window.request_redraw();
+        };
     }
 }
 

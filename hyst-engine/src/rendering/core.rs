@@ -1,9 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use crate::rendering::basics::*;
 use bytemuck::{Pod, Zeroable};
-use glyphon::{Cache, TextAtlas, TextRenderer};
-use hyst_math::vectors::Rgba;
+use hyst_math::vectors::{Rgba, Vec2f32};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use wgpu::{
     Adapter, BackendOptions, Backends, BindGroup, BindGroupEntry, BindGroupLayout,
@@ -15,7 +18,11 @@ use winit::window::Window;
 
 use crate::shaders::{HystConstructor, ShaderCreationOptions};
 
-use super::elements::HystElement;
+use super::{
+    elements::{HystElement, HystText},
+    meshes::text::Text,
+    text::TextManager,
+};
 
 pub struct RenderingCore {
     instance: Instance,
@@ -24,9 +31,9 @@ pub struct RenderingCore {
     device: Device,
     queue: Queue,
     config: SurfaceConfiguration,
-    text_renderer: TextRenderer,
     pipelines: HashMap<&'static str, Arc<RenderPipeline>>,
     shaders: HashMap<&'static str, Arc<ShaderModule>>,
+    text_renderer: TextManager,
 }
 
 impl RenderingCore {
@@ -68,26 +75,25 @@ impl RenderingCore {
             .get_default_config(&adapter, size.width, size.height)
             .unwrap();
         surface.configure(&device, &config);
-        let mut texture_atlas =
-            TextAtlas::new(&device, &queue, &Cache::new(&device), config.format);
         Self {
+            text_renderer: TextManager::new(
+                &device,
+                &queue,
+                config.format,
+                (size.width as f32, size.height as f32),
+            ),
             instance,
             surface,
             adapter,
             queue,
             config,
-            text_renderer: TextRenderer::new(
-                &mut texture_atlas,
-                &device,
-                wgpu::MultisampleState::default(),
-                None,
-            ),
             device,
             pipelines: HashMap::new(),
             shaders: HashMap::new(),
         }
     }
 
+    ///Writes the given `data` slice on the given `buffer`
     pub fn write_buffer<T>(&self, data: &[T], buffer: &Buffer)
     where
         T: Pod + Zeroable,
@@ -95,6 +101,7 @@ impl RenderingCore {
         self.queue
             .write_buffer(buffer, 0, bytemuck::cast_slice(data));
     }
+    ///Writes that given `data` on the given `buffer`. Usefull when storing stuff on &[T] is not required.
     pub fn write_buffer_single<T>(&self, data: &T, buffer: &Buffer)
     where
         T: Pod + Zeroable,
@@ -102,6 +109,8 @@ impl RenderingCore {
         self.queue.write_buffer(buffer, 0, bytemuck::bytes_of(data));
     }
 
+    ///Creates the given Shader type based on the given `options`.
+    ///If some of it was already created, they will share the same pipeline and modules via Arc, but their bindgroups not.
     pub fn create_shader<S>(&mut self, options: ShaderCreationOptions) -> S
     where
         S: HystConstructor + Sized,
@@ -182,6 +191,7 @@ impl RenderingCore {
                 primitive: draw_method,
             })
     }
+    ///Creates a wgsl shader from the given `source`.
     pub fn create_module(&self, source: &str, label: Option<&str>) -> wgpu::ShaderModule {
         self.device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -288,6 +298,7 @@ impl RenderingCore {
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
+        self.text_renderer.resize(&self.queue, width, height);
     }
 
     pub fn device(&self) -> &Device {
@@ -380,11 +391,13 @@ impl RenderingCore {
         GpuImage::new(texture, sampler, view)
     }
 
+    #[inline]
+    pub(crate) fn prepare_texts(&mut self, texts: Vec<(glyphon::Buffer, Vec2f32)>) {
+        self.text_renderer.prepare(&self.device, &self.queue, texts);
+    }
+
     pub fn draw(&self, elements: &[&Box<dyn HystElement>], bg: Rgba) {
-        let frame = self
-            .surface
-            .get_current_texture()
-            .expect("Failed to acquire next swap chain texture");
+        let frame = self.surface.get_current_texture().unwrap();
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -416,9 +429,23 @@ impl RenderingCore {
             for element in elements {
                 element.render(&mut render_pass);
             }
+
+            self.text_renderer.draw_texts(&mut render_pass);
         }
 
         self.queue.submit(Some(encoder.finish()));
         frame.present();
+    }
+}
+
+impl Deref for RenderingCore {
+    type Target = TextManager;
+    fn deref(&self) -> &Self::Target {
+        &self.text_renderer
+    }
+}
+impl DerefMut for RenderingCore {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.text_renderer
     }
 }

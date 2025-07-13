@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use hyst_math::Rect;
 use slotmap::SlotMap;
 use smol_str::SmolStr;
@@ -7,17 +9,21 @@ use crate::{
     HystLayout,
     background::Background,
     core::RenderingCore,
-    elements::{HystBox, HystBoxCreationOption, HystElement, HystImage, HystImageCreationOption},
+    elements::{
+        HystBox, HystBoxCreationOption, HystElement, HystImage, HystImageCreationOption, HystText,
+        TextCreationOption,
+    },
     error::LayoutError,
 };
 
-use super::HystElementKey;
+use super::{HystElementKey, HystTextOptions};
 
 ///Entry point for the managing how the ui is shown on the screen.
 ///Things related to pulses, and events, even if they do modify the ui, they're handled on the HystUi which is used to request some management
 pub struct ElementManager {
     layout: HystLayout,
     elements: SlotMap<HystElementKey, Box<dyn HystElement>>,
+    texts: Vec<HystElementKey>, // used for getting track of texts and using them for drawing.
     roots: Vec<HystElementKey>,
 }
 
@@ -25,6 +31,7 @@ impl ElementManager {
     pub fn new() -> Self {
         Self {
             layout: HystLayout::new(),
+            texts: Vec::new(),
             elements: SlotMap::with_key(),
             roots: Vec::new(),
         }
@@ -79,6 +86,28 @@ impl ElementManager {
             ))
         })
     }
+    ///Inserts a new HystText on the ui
+    pub fn insert_text(
+        &mut self,
+        core: &mut RenderingCore,
+        opts: HystTextOptions,
+    ) -> Result<HystElementKey, LayoutError> {
+        let style = self.generate_layout(None, opts.style)?;
+        Ok(self.elements.insert_with_key(|key| {
+            self.texts.push(key);
+            Box::new(HystText::new(
+                core,
+                TextCreationOption {
+                    key,
+                    layout: style,
+                    font_size: opts.font_size,
+                    line_height: opts.font_size * 0.5,
+                    position: opts.position,
+                    content: opts.content,
+                },
+            ))
+        }))
+    }
 
     ///Inserts a new HystImage on the ui .
     pub fn insert_image(
@@ -100,6 +129,21 @@ impl ElementManager {
                 },
             ))
         })
+    }
+
+    #[inline]
+    ///Gets the list of all Texts id's on the Ui
+    pub fn texts(&self) -> &Vec<HystElementKey> {
+        &self.texts
+    }
+
+    #[inline]
+    ///Gets the list of all Texts in the ui
+    pub fn text_elements(&self) -> Vec<&HystText> {
+        self.texts
+            .iter()
+            .filter_map(|key| self.get_element_with_type(*key).unwrap())
+            .collect()
     }
 
     #[inline]
@@ -140,6 +184,14 @@ impl ElementManager {
             .collect()
     }
 
+    ///Tries to get the element which has the given `key` casting it to <T>
+    ///If the element does not exist, None will be returned.
+    ///If the element does exist but it's type is incorrect, return Some(None), otherwhise, Some(Some(&element_ref))
+    pub fn get_element_with_type<T: HystElement>(&self, key: HystElementKey) -> Option<Option<&T>> {
+        let el = &**self.get_element(key)? as &dyn Any;
+        Some(el.downcast_ref::<T>())
+    }
+
     ///Gets a vector containing all the children of the element which has the given `key`
     pub fn get_children_of(&self, key: HystElementKey) -> Vec<&Box<dyn HystElement>> {
         let mut out = Vec::new();
@@ -163,7 +215,7 @@ impl ElementManager {
     ///Resizes the root and its children recursively
     pub fn resize_root(
         &mut self,
-        core: &RenderingCore,
+        core: &mut RenderingCore,
         root: HystElementKey,
         width: f32,
         height: f32,
@@ -185,7 +237,7 @@ impl ElementManager {
     /// # Arguments
     /// `width` The current width of the window
     /// `height` The current height of the window
-    pub fn resize_roots(&mut self, core: &RenderingCore, width: f32, height: f32) {
+    pub fn resize_roots(&mut self, core: &mut RenderingCore, width: f32, height: f32) {
         self.recalc_layouts(width, height);
         let mut idx = 0;
         while let Some(root) = self.roots.get(idx) {

@@ -71,13 +71,13 @@ impl HystElement for HystBox {
     fn layout(&self) -> NodeId {
         self.style
     }
-    fn resize(&mut self, core: &RenderingCore, size: (f32, f32), layout: &taffy::Layout) {
+    fn resize(&mut self, core: &mut RenderingCore, size: (f32, f32), layout: &taffy::Layout) {
         self.container.resize(core, size, layout);
     }
     fn children(&self) -> &Vec<HystElementKey> {
         &self.children
     }
-    fn update(&mut self, core: &RenderingCore) {}
+    fn update(&mut self, core: &mut RenderingCore) {}
     fn render(&self, pass: &mut wgpu::RenderPass) {
         self.container.draw(pass);
     }

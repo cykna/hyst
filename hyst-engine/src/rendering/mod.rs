@@ -5,6 +5,7 @@ pub mod elements;
 mod helpers;
 pub mod meshes;
 pub mod shaders;
+pub mod text;
 pub mod ui;
 pub(crate) use basics::*;
 pub(crate) use helpers::*;

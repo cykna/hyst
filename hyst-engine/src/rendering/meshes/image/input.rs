@@ -1,5 +1,5 @@
 use bytemuck::{Pod,Zeroable};
-use hyst_math::vectors::{Vec2f32, Vec4f32};
+use hyst_math::vectors::Vec2f32;
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct ImageInput {
