@@ -1,5 +1,7 @@
 mod input;
 pub use input::*;
+mod batch;
+pub use batch::*;
 use taffy::{Point, Size};
 mod shader;
 use crate::{
@@ -12,22 +14,20 @@ use crate::{
 use hyst_math::Rect;
 pub use shader::*;
 
+// Estrutura para um elemento de container
 #[derive(Debug)]
 pub struct Container {
-    shader: ContainerShader,
     vertices: AbstractBuffer<[ContainerInput; 4]>,
-    index: wgpu::Buffer,
-    indices_len: u32,
     rect_buf: AbstractBuffer<Rect>,
     screen_size: AbstractBuffer<[f32; 2]>,
+    depth: i32, // Profundidade para ordenação
 }
 
 impl Container {
-    pub fn new(core: &mut RenderingCore, bg: Background, rect: Rect) -> Self {
+    pub fn new(core: &mut RenderingCore, bg: Background, rect: Rect, depth: i32) -> Self {
         let size = core.size();
         let rect_buf = AbstractBuffer::new(core, rect, BufferType::Uniform);
-        let screen_size =
-            AbstractBuffer::new(core, [size.0 as f32, size.1 as f32], BufferType::Uniform);
+        let screen_size = AbstractBuffer::new(core, [size.0 as f32, size.1 as f32], BufferType::Uniform);
         let vertices = AbstractBuffer::new(
             core,
             match bg {
@@ -58,27 +58,27 @@ impl Container {
             BufferType::Vertex,
         );
         Self {
-            indices_len: 6,
             vertices,
-            index: core.create_index_buffer(&[0, 1, 2, 2, 1, 3], None),
-            shader: core.create_shader(crate::shaders::ShaderCreationOptions {
-                source: &std::fs::read_to_string("./shaders/container.wgsl").unwrap(),
-                bind_group_configs: vec![vec![
-                    BindGroupAndLayoutConfig::Uniform(
-                        wgpu::ShaderStages::VERTEX,
-                        screen_size.inner_buffer(),
-                    ),
-                    BindGroupAndLayoutConfig::Uniform(
-                        wgpu::ShaderStages::VERTEX,
-                        rect_buf.inner_buffer(),
-                    ),
-                ]],
-                rendering_style: ShaderRenderMethod::TriangleCcwBack,
-                name: "container".to_string(),
-            }),
-            screen_size,
             rect_buf,
+            screen_size,
+            depth,
         }
+    }
+
+    pub fn depth(&self) -> i32 {
+        self.depth
+    }
+
+    pub fn vertices_buffer(&self) -> &AbstractBuffer<[ContainerInput; 4]> {
+        &self.vertices
+    }
+
+    pub fn rect_buffer(&self) -> &AbstractBuffer<Rect> {
+        &self.rect_buf
+    }
+
+    pub fn screen_size_buffer(&self) -> &AbstractBuffer<[f32; 2]> {
+        &self.screen_size
     }
 }
 
@@ -90,22 +90,9 @@ impl Mesh for Container {
     fn screen_size(&mut self) -> &mut AbstractBuffer<[f32; 2]> {
         &mut self.screen_size
     }
-    fn draw(&self, pass: &mut wgpu::RenderPass) {
-        pass.set_pipeline(self.shader.pipeline());
-        {
-            let mut idx = 0;
-            for bind_group in self.shader.bind_groups() {
-                pass.set_bind_group(idx, bind_group, &[]);
-                idx += 1;
-            }
-        }
-        pass.set_index_buffer(self.index.slice(..), wgpu::IndexFormat::Uint16);
-        pass.set_vertex_buffer(0, self.vertices.inner_buffer().slice(..));
-        pass.draw_indexed(0..self.indices_len, 0, 0..1);
-    }
+
     fn resize(&mut self, core: &RenderingCore, screen_size: (f32, f32), layout: &taffy::Layout) {
-        self.screen_size
-            .write_with(core, [screen_size.0, screen_size.1]);
+        self.screen_size.write_with(core, [screen_size.0, screen_size.1]);
 
         let rect_buf = self.area_buffer();
         let rect_mut = rect_buf.inner_mut();
