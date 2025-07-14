@@ -1,6 +1,7 @@
 use crate::{
     AbstractBuffer,
     background::Background,
+    batch::{BatchRenderer, BatchSubmitter},
     core::RenderingCore,
     meshes::{Mesh, container::Container},
     ui::HystElementKey,
@@ -28,8 +29,8 @@ pub struct HystBox {
 }
 
 impl HystBox {
-    pub fn new(core: &mut RenderingCore, config: HystBoxCreationOption) -> Self {
-        let container = Container::new(core, config.background, config.rect);
+    pub fn new(config: HystBoxCreationOption) -> Self {
+        let container = Container::new(config.background, config.rect, 0);
         Self {
             container,
             parent: config.parent,
@@ -54,14 +55,6 @@ impl HystBox {
     pub fn container_mut(&mut self) -> &mut Container {
         &mut self.container
     }
-
-    pub fn rect(&mut self) -> &mut AbstractBuffer<Rect> {
-        self.container.area_buffer()
-    }
-
-    pub fn screen_size(&mut self) -> &mut AbstractBuffer<[f32; 2]> {
-        self.container.screen_size()
-    }
 }
 
 impl HystElement for HystBox {
@@ -71,14 +64,17 @@ impl HystElement for HystBox {
     fn layout(&self) -> NodeId {
         self.style
     }
-    fn resize(&mut self, core: &mut RenderingCore, size: (f32, f32), layout: &taffy::Layout) {
-        self.container.resize(core, size, layout);
+    fn resize(
+        &mut self,
+        core: &RenderingCore,
+        renderer: &mut dyn BatchSubmitter,
+        layout: &taffy::Layout,
+    ) {
+        self.container.resize(core, renderer, layout);
     }
     fn children(&self) -> &Vec<HystElementKey> {
         &self.children
     }
     fn update(&mut self, core: &mut RenderingCore) {}
-    fn render(&self, pass: &mut wgpu::RenderPass) {
-        self.container.draw(pass);
-    }
+    fn render(&self, pass: &mut wgpu::RenderPass) {}
 }

@@ -2,6 +2,7 @@ use hyst_math::Rect;
 use taffy::NodeId;
 
 use crate::{
+    batch::{BatchRenderer, BatchSubmitter},
     core::RenderingCore,
     meshes::{
         Mesh,
@@ -28,7 +29,7 @@ pub struct HystImage {
 }
 
 impl HystImage {
-    pub fn new(core: &mut RenderingCore, options: HystImageCreationOption) -> Self {
+    pub fn new(core: &RenderingCore, options: HystImageCreationOption) -> Self {
         Self {
             img: Image::from_configs(
                 core,
@@ -75,17 +76,15 @@ impl HystElement for HystImage {
     }
     fn resize(
         &mut self,
-        core: &mut RenderingCore,
-        screen_size: (f32, f32),
+        core: &RenderingCore,
+        renderer: &mut dyn BatchSubmitter,
         layout: &taffy::Layout,
     ) {
-        self.img.resize(core, screen_size, layout);
+        self.img.resize(core, renderer, layout);
     }
     fn children(&self) -> &Vec<HystElementKey> {
         &self.children
     }
     fn update(&mut self, core: &mut RenderingCore) {}
-    fn render(&self, pass: &mut wgpu::RenderPass) {
-        self.img.draw(pass);
-    }
+    fn render(&self, pass: &mut wgpu::RenderPass) {}
 }

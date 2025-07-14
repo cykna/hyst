@@ -9,17 +9,15 @@ struct FragmentInput {
 }
 
 struct Rect {
-    position: vec2<f32>,
-    size: vec2<f32>,
+    @location(2) position: vec2<f32>,
+    @location(3) size: vec2<f32>,
 }
 
 @group(0) @binding(0)
 var<uniform> screen_size: vec2<f32>;
-@group(0) @binding(1)
-var<uniform> rect: Rect;
 
 @vertex
-fn vertex_main(in: VertexInput) -> FragmentInput {
+fn vertex_main(in: VertexInput, rect: Rect) -> FragmentInput {
     var out:FragmentInput;
     let ndc_size = rect.size / screen_size;
     let rect_position = in.position * ndc_size + vec2<f32>(ndc_size.x, -ndc_size.y);

@@ -3,7 +3,7 @@ use hyst_engine::{
     core::RenderingCore,
     shaders::events::ShaderEvent,
     ui::{
-        HystUi,
+        HystBoxOptions, HystImageOptions, HystUi,
         pulse::Pulse,
         taffy::{Dimension, Position},
     },
@@ -43,6 +43,11 @@ impl HystHandler for Handler {
             },
         );
         let text = ui.create_pulse(String::from("Jorge"));
+        ui.create_box(HystBoxOptions {
+            bg: hyst_engine::background::Background::Solid(Vec4f32::RED),
+            style: "seupai".into(),
+        })
+        .unwrap();
         ui.create_text(hyst_engine::ui::HystTextOptions {
             content: text.clone(),
             position: Vec2f32::new(80.0, 80.0),

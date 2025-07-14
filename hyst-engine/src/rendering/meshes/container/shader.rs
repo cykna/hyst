@@ -33,7 +33,7 @@ impl HystConstructor for ContainerShader {
         "container"
     }
     fn shader_inputs() -> Vec<wgpu::VertexBufferLayout<'static>> {
-        vec![ContainerInput::LAYOUT]
+        ContainerInput::LAYOUT.to_vec()
     }
 }
 

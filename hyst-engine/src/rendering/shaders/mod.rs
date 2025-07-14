@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use bitmask::bitmask;
 pub mod events;
+use bytemuck::{Pod, Zeroable};
 use wgpu::{BindGroup, BindGroupLayout, RenderPipeline, ShaderModule};
 
 use crate::rendering::basics::BindGroupAndLayoutConfig;
@@ -77,8 +78,8 @@ pub struct ShaderCreationOptions<'a> {
     pub name: String,
 }
 
-pub trait ShaderInput {
-    const LAYOUT: wgpu::VertexBufferLayout<'static>;
+pub trait ShaderInput: Pod + Zeroable {
+    const LAYOUT: &[wgpu::VertexBufferLayout<'static>];
 }
 
 pub trait HystShader {

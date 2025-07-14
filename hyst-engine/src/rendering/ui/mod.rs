@@ -1,6 +1,7 @@
 mod element_manager;
 mod options;
 pub mod pulse;
+pub mod renderer;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::{Receiver, Sender, channel},
@@ -15,8 +16,6 @@ use hyst_math::vectors::{Vec2f32, Vec4f32};
 pub use smol_str;
 pub use taffy;
 
-use super::elements::HystText;
-
 slotmap::new_key_type! {pub struct HystElementKey;}
 
 pub struct HystUi {
@@ -27,17 +26,22 @@ pub struct HystUi {
     tx: Sender<HystElementKey>,
 }
 
-///Struct that manages the creation and modification of elements. Until now the modification can only be done here
+///Struct that manages a high level creation and selection of elements as well as their needs such as Pulses.
 impl HystUi {
-    pub fn new(core: RenderingCore, bg: Vec4f32) -> Self {
+    pub fn new(mut core: RenderingCore, bg: Vec4f32) -> Self {
         let (tx, rx) = channel();
         Self {
-            element_manager: ElementManager::new(),
+            element_manager: ElementManager::new(&mut core),
             core,
             bg,
             rx,
             tx,
         }
+    }
+
+    #[inline]
+    pub fn core_mut(&mut self) -> &mut RenderingCore {
+        &mut self.core
     }
 
     pub fn create_pulse<T>(&self, value: T) -> Pulse<T> {
@@ -51,9 +55,7 @@ impl HystUi {
     pub fn create_box(&mut self, options: HystBoxOptions) -> Result<HystElementKey, LayoutError> {
         let style = self.generate_layout(None, options.style)?;
         let rect = self.get_rect(style)?;
-        Ok(self
-            .element_manager
-            .insert_box(style, options.bg, rect, &mut self.core))
+        Ok(self.element_manager.insert_box(style, options.bg, rect))
     }
     pub fn create_image(
         &mut self,
@@ -63,20 +65,13 @@ impl HystUi {
         let rect = self.get_rect(style)?;
         Ok(self
             .element_manager
-            .insert_image(&mut self.core, rect, options.source, style))
+            .insert_image(&self.core, rect, options.source, style))
     }
 
-    pub fn core(&self) -> &RenderingCore {
-        &self.core
-    }
-
-    pub fn core_mut(&mut self) -> &mut RenderingCore {
-        &mut self.core
-    }
     #[inline]
     pub fn resize_roots(&mut self, width: f32, height: f32) {
         self.element_manager
-            .resize_roots(&mut self.core, width, height);
+            .resize_roots(&self.core, (width, height));
     }
 
     fn prepare_texts(&mut self) {
@@ -103,7 +98,9 @@ impl HystUi {
             children.push(parent);
             children.append(&mut self.get_children_of(*root));
         }
-        self.core.draw(&children, self.bg);
+        println!("{children:?}");
+
+        self.core.draw(self, self.bg);
     }
 
     ///Checks if there are some pending element keys that require updating, if so, updates the elements that require.

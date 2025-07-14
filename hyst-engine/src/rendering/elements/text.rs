@@ -2,6 +2,7 @@ use hyst_math::vectors::{Vec2f32, Vec4f32};
 use taffy::NodeId;
 
 use crate::{
+    batch::BatchSubmitter,
     core::RenderingCore,
     meshes::text::Text,
     ui::{HystElementKey, pulse::Pulse},
@@ -9,6 +10,7 @@ use crate::{
 
 use super::HystElement;
 
+#[derive(Debug)]
 pub struct HystText {
     key: HystElementKey,
     layout: NodeId,
@@ -74,8 +76,8 @@ impl HystElement for HystText {
     }
     fn resize(
         &mut self,
-        core: &mut RenderingCore,
-        screen_size: (f32, f32),
+        core: &RenderingCore,
+        batcher: &mut dyn BatchSubmitter,
         layout: &taffy::Layout,
     ) {
     }

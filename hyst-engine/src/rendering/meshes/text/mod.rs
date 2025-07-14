@@ -3,6 +3,7 @@ use hyst_math::vectors::Vec2f32;
 
 use crate::core::RenderingCore;
 
+#[derive(Debug)]
 pub struct Text {
     position: Vec2f32,
     buffer: Buffer,

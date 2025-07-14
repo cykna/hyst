@@ -1,4 +1,7 @@
-use std::any::Any;
+use std::{
+    any::Any,
+    ops::{Deref, DerefMut},
+};
 
 use hyst_math::Rect;
 use slotmap::SlotMap;
@@ -16,11 +19,13 @@ use crate::{
     error::LayoutError,
 };
 
-use super::{HystElementKey, HystTextOptions};
+use super::{HystElementKey, HystTextOptions, renderer::Renderer};
 
 ///Entry point for the managing how the ui is shown on the screen.
 ///Things related to pulses, and events, even if they do modify the ui, they're handled on the HystUi which is used to request some management
 pub struct ElementManager {
+    ///Rendered uses instanced drawing for making draw calls, so it does manipulate the data of the buffers on the gpu
+    elements_renderer: Renderer,
     layout: HystLayout,
     elements: SlotMap<HystElementKey, Box<dyn HystElement>>,
     texts: Vec<HystElementKey>, // used for getting track of texts and using them for drawing.
@@ -28,8 +33,9 @@ pub struct ElementManager {
 }
 
 impl ElementManager {
-    pub fn new() -> Self {
+    pub fn new(core: &mut RenderingCore) -> Self {
         Self {
+            elements_renderer: Renderer::new(core),
             layout: HystLayout::new(),
             texts: Vec::new(),
             elements: SlotMap::with_key(),
@@ -70,20 +76,16 @@ impl ElementManager {
         layout_id: NodeId,
         background: Background,
         rect: hyst_math::Rect,
-        core: &mut RenderingCore,
     ) -> HystElementKey {
         self.elements.insert_with_key(|key| {
             self.roots.push(key);
-            Box::new(HystBox::new(
-                core,
-                HystBoxCreationOption {
-                    background,
-                    rect,
-                    parent: None,
-                    style: layout_id,
-                    key,
-                },
-            ))
+            Box::new(HystBox::new(HystBoxCreationOption {
+                background,
+                rect,
+                parent: None,
+                style: layout_id,
+                key,
+            }))
         })
     }
     ///Inserts a new HystText on the ui
@@ -113,7 +115,7 @@ impl ElementManager {
     ///Inserts a new HystImage on the ui .
     pub fn insert_image(
         &mut self,
-        core: &mut RenderingCore,
+        core: &RenderingCore,
         rect: Rect,
         source: String,
         layout_id: NodeId,
@@ -214,23 +216,30 @@ impl ElementManager {
     }
 
     ///Resizes the root and its children recursively
-    pub fn resize_root(
-        &mut self,
-        core: &mut RenderingCore,
-        root: HystElementKey,
-        width: f32,
-        height: f32,
-    ) {
+    pub fn resize_root(&mut self, core: &RenderingCore, root: HystElementKey) {
         let children: Vec<_> = {
             let Some(parent) = self.elements.get_mut(root) else {
                 return;
             };
             let layout = self.layout.layout_of(parent.layout()).unwrap();
-            parent.resize(core, (width, height), layout);
+            {
+                println!("{parent:?}");
+                let parent = &mut **parent as &mut dyn Any;
+                if let Some(bx) = parent.downcast_mut::<HystBox>() {
+                    bx.resize(core, self.elements_renderer.box_renderer_mut(), layout);
+                } else if let Some(img) = parent.downcast_mut::<HystImage>() {
+                    println!("Must implement instanced drawing for images");
+                    todo!()
+                    //img.resize(core, self.elements_renderer.image_renderer_mut(), layout);
+                } else {
+                    panic!("What in the fuck is this element?");
+                }
+            }
+
             parent.children().iter().cloned().collect()
         };
         for child in children {
-            self.resize_root(core, child, width, height);
+            self.resize_root(core, child);
         }
     }
 
@@ -238,12 +247,25 @@ impl ElementManager {
     /// # Arguments
     /// `width` The current width of the window
     /// `height` The current height of the window
-    pub fn resize_roots(&mut self, core: &mut RenderingCore, width: f32, height: f32) {
+    pub fn resize_roots(&mut self, core: &RenderingCore, (width, height): (f32, f32)) {
         self.recalc_layouts(width, height);
         let mut idx = 0;
         while let Some(root) = self.roots.get(idx) {
             idx += 1;
-            self.resize_root(core, *root, width, height);
+            self.resize_root(core, *root);
         }
+    }
+}
+
+impl Deref for ElementManager {
+    type Target = Renderer;
+    fn deref(&self) -> &Self::Target {
+        &self.elements_renderer
+    }
+}
+
+impl DerefMut for ElementManager {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.elements_renderer
     }
 }

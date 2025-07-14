@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::ImageInput;
-use crate::shaders::{HystConstructor, HystShader};
+use crate::shaders::{HystConstructor, HystShader, ShaderInput};
 
 #[derive(Debug)]
 pub struct ImageShader {
@@ -44,7 +44,7 @@ impl HystConstructor for ImageShader {
         }
     }
     fn shader_inputs() -> Vec<wgpu::VertexBufferLayout<'static>> {
-        vec![ImageInput::LAYOUT]
+        ImageInput::LAYOUT.to_vec()
     }
     fn name() -> &'static str {
         "image_shader"

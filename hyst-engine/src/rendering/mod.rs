@@ -1,5 +1,6 @@
 pub mod background;
 mod basics;
+pub mod batch;
 pub mod core;
 pub mod elements;
 mod helpers;

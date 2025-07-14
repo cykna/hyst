@@ -7,7 +7,7 @@ use wgpu::naga::FastHashSet;
 
 use super::HystElementKey;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 ///A pulse is a thread shared value which is used to get track of changing states and tell ui to compute them.
 pub struct Pulse<T> {
     pulse: Arc<RwLock<T>>,

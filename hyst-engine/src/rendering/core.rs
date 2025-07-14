@@ -10,17 +10,19 @@ use hyst_math::vectors::{Rgba, Vec2f32, Vec4f32};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use wgpu::{
     Adapter, BackendOptions, Backends, BindGroup, BindGroupEntry, BindGroupLayout,
-    BindGroupLayoutEntry, Buffer, BufferDescriptor, BufferUsages, Device, Instance, InstanceFlags,
-    Origin3d, Queue, RenderPipeline, ShaderModule, ShaderStages, Surface, SurfaceConfiguration,
-    TextureDescriptor, TextureViewDescriptor, VertexBufferLayout,
+    BindGroupLayoutEntry, Buffer, BufferDescriptor, BufferUsages, BufferUses, Device, Instance,
+    InstanceFlags, Origin3d, Queue, RenderPipeline, ShaderModule, ShaderStages, Surface,
+    SurfaceConfiguration, TextureDescriptor, TextureViewDescriptor, VertexBufferLayout,
+    util::{BufferInitDescriptor, DeviceExt},
 };
 use winit::window::Window;
 
 use crate::shaders::{HystConstructor, ShaderCreationOptions};
 
 use super::{
+    batch::BatchRenderer,
     elements::{HystElement, HystText},
-    meshes::text::Text,
+    meshes::{Mesh, container::Container, text::Text},
     text::TextManager,
 };
 
@@ -93,6 +95,10 @@ impl RenderingCore {
         }
     }
 
+    pub fn write_buffer_raw(&self, data: &[u8], buffer: &Buffer, offset: Option<u64>) {
+        self.queue.write_buffer(buffer, offset.unwrap_or(0), data);
+    }
+
     ///Writes the given `data` slice on the given `buffer`
     pub fn write_buffer<T>(&self, data: &[T], buffer: &Buffer)
     where
@@ -102,11 +108,15 @@ impl RenderingCore {
             .write_buffer(buffer, 0, bytemuck::cast_slice(data));
     }
     ///Writes that given `data` on the given `buffer`. Usefull when storing stuff on &[T] is not required.
-    pub fn write_buffer_single<T>(&self, data: &T, buffer: &Buffer)
+    pub fn write_buffer_single<T>(&self, data: &T, buffer: &Buffer, offset: Option<u64>)
     where
         T: Pod + Zeroable,
     {
-        self.queue.write_buffer(buffer, 0, bytemuck::bytes_of(data));
+        self.queue.write_buffer(
+            buffer,
+            offset.unwrap_or(0) * std::mem::size_of::<T>() as u64,
+            bytemuck::bytes_of(data),
+        );
     }
 
     ///Creates the given Shader type based on the given `options`.
@@ -305,21 +315,33 @@ impl RenderingCore {
         &self.device
     }
 
+    ///Creates a vertex buffer with the given data
     pub fn create_vertex_buffer<T>(&self, data: &[T], label: Option<&str>) -> Buffer
     where
         T: Pod + Zeroable,
     {
-        let data = bytemuck::cast_slice(data);
-        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+        self.device.create_buffer_init(&BufferInitDescriptor {
             label,
-            size: data.len() as u64,
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        self.queue.write_buffer(&buffer, 0, data);
-        buffer
+            contents: bytemuck::cast_slice(data),
+        })
     }
 
+    ///Creates an empty buffer used for instanced draw calls.
+    ///Initially this function allocates space N instances, if none, it defaults to 128 instances of the given type, later it's is needed to resize
+    pub fn create_instance_buffer<T>(&self, size: Option<u64>, label: Option<&str>) -> Buffer
+    where
+        T: Pod + Zeroable,
+    {
+        self.device.create_buffer(&wgpu::BufferDescriptor {
+            label,
+            size: std::mem::size_of::<T>() as u64 * size.unwrap_or(128),
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        })
+    }
+
+    ///Creates an IBO with the given data and label.
     pub fn create_index_buffer(&self, data: &[u16], label: Option<&str>) -> Buffer {
         let byte_data = bytemuck::cast_slice(&data);
         let buffer = self.device.create_buffer(&BufferDescriptor {
@@ -396,7 +418,8 @@ impl RenderingCore {
         self.text_renderer.prepare(&self.device, &self.queue, texts);
     }
 
-    pub fn draw(&self, elements: &[&Box<dyn HystElement>], bg: Rgba) {
+    ///Draws everything on the screen
+    pub fn draw(&self, renderer: &crate::rendering::ui::renderer::Renderer, bg: Rgba) {
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame
             .texture
@@ -426,10 +449,7 @@ impl RenderingCore {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            for element in elements {
-                element.render(&mut render_pass);
-            }
-
+            renderer.box_renderer().render(&mut render_pass);
             self.text_renderer.draw_texts(&mut render_pass);
         }
 
