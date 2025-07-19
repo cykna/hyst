@@ -68,19 +68,14 @@ impl std::ops::DerefMut for HystImage {
 }
 
 impl HystElement for HystImage {
+    fn instance_index(&self) -> u64 {
+        0
+    }
     fn id(&self) -> HystElementKey {
         self.key
     }
     fn layout(&self) -> NodeId {
         self.style
-    }
-    fn resize(
-        &mut self,
-        core: &RenderingCore,
-        renderer: &mut dyn BatchSubmitter,
-        layout: &taffy::Layout,
-    ) {
-        self.img.resize(core, renderer, layout);
     }
     fn children(&self) -> &Vec<HystElementKey> {
         &self.children

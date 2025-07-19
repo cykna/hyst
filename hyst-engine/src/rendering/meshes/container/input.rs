@@ -1,9 +1,10 @@
-use crate::shaders::ShaderInput;
+use crate::{meshes::Updatable, shaders::ShaderInput};
 use bytemuck::{Pod, Zeroable};
 use hyst_math::{
     Rect,
     vectors::{Vec2f32, Vec4f32},
 };
+use taffy::Layout;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct ContainerInput {
@@ -21,8 +22,8 @@ impl ContainerInput {
 #[repr(C)]
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]
 pub struct ContainerInstance {
-    color: Vec4f32,
     rect: Rect,
+    color: Vec4f32,
 }
 
 impl ContainerInstance {
@@ -42,6 +43,17 @@ impl ContainerInstance {
     }
 }
 
+impl Updatable<Layout> for ContainerInstance {
+    fn update(&mut self, data: &Layout) {
+        self.rect
+            .position_mut()
+            .set_coords(data.content_box_x(), data.content_box_y());
+        self.rect
+            .size_mut()
+            .set_coords(data.content_box_width(), data.content_box_height());
+    }
+}
+
 impl ShaderInput for ContainerInput {
     const LAYOUT: &[wgpu::VertexBufferLayout<'static>] = &[
         wgpu::VertexBufferLayout {
@@ -55,9 +67,9 @@ impl ShaderInput for ContainerInput {
             array_stride: std::mem::size_of::<ContainerInstance>() as u64,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &wgpu::vertex_attr_array![
-                1 => Float32x4,
+                1 => Float32x2,
                 2 => Float32x2,
-                3 => Float32x2
+                3 => Float32x4
             ],
         },
     ];

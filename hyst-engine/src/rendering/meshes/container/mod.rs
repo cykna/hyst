@@ -37,19 +37,4 @@ impl Mesh for Container {
     type Shader = ContainerShader;
     type Vertices = ContainerInput;
     type Instance = ContainerInstance;
-    fn resize(
-        &mut self,
-        core: &RenderingCore,
-        renderer: &mut dyn BatchSubmitter,
-        layout: &taffy::Layout,
-    ) {
-        let Size { width, height } = layout.size;
-        self.instance
-            .rect_mut()
-            .size_mut()
-            .set_coords(width, height);
-        let Point { x, y } = layout.location;
-        self.instance.rect_mut().position_mut().set_coords(x, y);
-        renderer.submit(core, bytemuck::bytes_of(&self.instance), self.index as u64)
-    }
 }

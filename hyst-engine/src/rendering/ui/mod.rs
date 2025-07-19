@@ -3,6 +3,8 @@ mod options;
 pub mod pulse;
 pub mod renderer;
 use std::{
+    any::Any,
+    collections::VecDeque,
     ops::{Deref, DerefMut},
     sync::mpsc::{Receiver, Sender, channel},
 };
@@ -16,7 +18,31 @@ use hyst_math::vectors::{Vec2f32, Vec4f32};
 pub use smol_str;
 pub use taffy;
 
+use super::elements::{HystBox, HystElement, HystImage};
+
 slotmap::new_key_type! {pub struct HystElementKey;}
+
+///Used for passing elements for the renderer. The idea is to transform a Tree like the following:
+/// Img {
+///   B1 = Box {}
+///   B2 = Box {}
+/// }
+/// R1 = Box {}
+/// R2 = Box {
+///   B3 = Box {}
+/// }
+/// into the following Vec<DrawRequestedElements<'a>>:
+/// [
+///   [Img],
+///   [R1, R2],
+///   [B1, B2, B3]
+/// ]
+/// So only 3 draw calls are made
+#[derive(Debug)]
+pub enum DrawRequestedElements {
+    Img(Vec<u64>), //u64 is the inner indice of the instance on the gpu
+    Box(Vec<u64>),
+}
 
 pub struct HystUi {
     core: RenderingCore,
@@ -88,19 +114,57 @@ impl HystUi {
         self.core.prepare_texts(texts);
     }
 
-    pub fn draw(&mut self) {
-        let mut children = Vec::new();
-        self.prepare_texts();
-        for root in self.roots_keys().iter() {
-            let Some(parent) = self.elements().get(*root) else {
-                continue;
-            };
-            children.push(parent);
-            children.append(&mut self.get_children_of(*root));
-        }
-        println!("{children:?}");
+    ///Transforms the tree into an array of vectors to pass to the batch renderer which elements to draw and the order to draw them.
+    ///
+    ///Observations: The actual implementation is a Breadth first search, algorithm suggested by @ry-diffusion but the implementation was written by @FelipePn10
+    pub fn traverse_elements(&self) -> Vec<DrawRequestedElements> {
+        let mut out = Vec::new();
+        let mut stack = self
+            .roots_keys()
+            .into_iter()
+            .map(|key| (0u16, *key)) //(u16, HystElementKey)
+            .collect::<Vec<_>>();
+        let mut current_depth = 0;
+        let mut next_level = Vec::new();
 
-        self.core.draw(self, self.bg);
+        while !stack.is_empty() {
+            let mut img = Vec::new();
+            let mut vbox = Vec::new(); //vec box
+
+            for (depth, key) in stack.drain(..) {
+                if depth > current_depth {
+                    next_level.push((depth, key));
+                    continue;
+                }
+
+                if let Some(Some(image)) = self.get_element_with_type::<HystImage>(key) {
+                    img.push(image.instance_index());
+                } else if let Some(Some(bx)) = self.get_element_with_type::<HystBox>(key) {
+                    vbox.push(bx.instance_index());
+                }
+
+                for child in self.get_children_of(key) {
+                    next_level.push((depth + 1, child.id()));
+                }
+            }
+
+            if !img.is_empty() {
+                out.push(DrawRequestedElements::Img(img));
+            }
+            if !vbox.is_empty() {
+                out.push(DrawRequestedElements::Box(vbox));
+            }
+            stack.extend(next_level.drain(..));
+            current_depth += 1;
+            // chico viadinho
+        }
+
+        out
+    }
+
+    pub fn draw(&mut self) {
+        self.prepare_texts();
+        self.core.draw(self.traverse_elements(), self, self.bg);
     }
 
     ///Checks if there are some pending element keys that require updating, if so, updates the elements that require.
@@ -114,7 +178,16 @@ impl HystUi {
                 element.update(&mut self.core);
             }
         }
+        self.flush();
         flag
+    }
+
+    ///Flushes all the modifications made on the library.
+    ///
+    ///Obs: Under the hood there is no queue or something like that, actually, it only writes the data on the AbstractBuffers of the renderers to the buffers, so this is expected to use
+    ///when something changes. Even though if nothing changes, calling this will trigger the rewrite, so it is not meant to be executed everytime, only when it's sure that a modification was made.
+    pub fn flush(&mut self) {
+        self.flush_modifications(&self.core);
     }
 }
 

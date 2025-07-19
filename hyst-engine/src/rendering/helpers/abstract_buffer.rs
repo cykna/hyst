@@ -75,15 +75,15 @@ where
         }
     }
 
-    ///Write the given data on the given index, as well as in the inner vector and the buffer.
-
+    ///Write the given data on the given index, both on the inner vector and the buffer.
+    ///The indexing on the buffer works the same way it would work on a conventional vector, so indexing by 3 will start writing from `3 * sizeof(T)` on the buffer
     pub fn write_single(&mut self, core: &RenderingCore, index: u64, data: T) {
         core.write_buffer_single(&data, &self.buffer, Some(index));
         self.inner[index as usize] = data;
     }
 
     ///Writes the modifications made in the inner value into the buffer
-    pub fn write_vec(&mut self, core: &RenderingCore) {
+    pub fn write_vec(&self, core: &RenderingCore) {
         core.write_buffer(self.inner.as_slice(), &self.buffer);
     }
     ///Writes the given data into this buffer and modifies the inner value, returning the old value

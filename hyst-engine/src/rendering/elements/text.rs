@@ -62,6 +62,9 @@ impl HystText {
 }
 
 impl HystElement for HystText {
+    fn instance_index(&self) -> u64 {
+        0
+    }
     fn children(&self) -> &Vec<HystElementKey> {
         &self.children
     }
@@ -74,14 +77,7 @@ impl HystElement for HystText {
     fn layout(&self) -> taffy::NodeId {
         self.layout
     }
-    fn resize(
-        &mut self,
-        core: &RenderingCore,
-        batcher: &mut dyn BatchSubmitter,
-        layout: &taffy::Layout,
-    ) {
-    }
-    fn render(&self, pass: &mut wgpu::RenderPass) {
+    fn render(&self, _: &mut wgpu::RenderPass) {
         //Not implemented by the text itself
     }
 }

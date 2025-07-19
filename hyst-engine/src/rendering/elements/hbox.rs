@@ -1,19 +1,10 @@
-use crate::{
-    AbstractBuffer,
-    background::Background,
-    batch::{BatchRenderer, BatchSubmitter},
-    core::RenderingCore,
-    meshes::{Mesh, container::Container},
-    ui::HystElementKey,
-};
-use hyst_math::Rect;
+use crate::{core::RenderingCore, ui::HystElementKey};
 use taffy::NodeId;
 
 use super::HystElement;
 
 pub struct HystBoxCreationOption {
-    pub background: Background,
-    pub rect: Rect,
+    pub index: u64,
     pub parent: Option<HystElementKey>,
     pub style: NodeId,
     pub key: HystElementKey,
@@ -21,18 +12,21 @@ pub struct HystBoxCreationOption {
 
 #[derive(Debug)]
 pub struct HystBox {
-    container: Container,
+    ///The parent key on the Ui tree
     parent: Option<HystElementKey>,
+    //The children keys on the Ui tree
     children: Vec<HystElementKey>,
-    style: NodeId,
+    //The key on the Ui tree
     key: HystElementKey,
+    style: NodeId,
+    ///The instance index on the batch renderer
+    index: u64,
 }
 
 impl HystBox {
     pub fn new(config: HystBoxCreationOption) -> Self {
-        let container = Container::new(config.background, config.rect, 0);
         Self {
-            container,
+            index: config.index,
             parent: config.parent,
             children: Vec::new(),
             key: config.key,
@@ -47,30 +41,17 @@ impl HystBox {
     pub fn parent(&self) -> Option<&HystElementKey> {
         self.parent.as_ref()
     }
-
-    pub fn container(&self) -> &Container {
-        &self.container
-    }
-
-    pub fn container_mut(&mut self) -> &mut Container {
-        &mut self.container
-    }
 }
 
 impl HystElement for HystBox {
+    fn instance_index(&self) -> u64 {
+        self.index
+    }
     fn id(&self) -> HystElementKey {
         self.key
     }
     fn layout(&self) -> NodeId {
         self.style
-    }
-    fn resize(
-        &mut self,
-        core: &RenderingCore,
-        renderer: &mut dyn BatchSubmitter,
-        layout: &taffy::Layout,
-    ) {
-        self.container.resize(core, renderer, layout);
     }
     fn children(&self) -> &Vec<HystElementKey> {
         &self.children

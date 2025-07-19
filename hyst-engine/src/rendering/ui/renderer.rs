@@ -2,7 +2,7 @@ use crate::{
     batch::BatchRenderer,
     core::RenderingCore,
     meshes::{
-        container::{Container, ContainerInput},
+        container::{Container, ContainerInput, ContainerInstance},
         image::{Image, ImageInput},
     },
 };
@@ -50,12 +50,34 @@ impl Renderer {
         }
     }
 
+    ///Sets the window size of all renderers to be the given one
+    /// # Arguments
+    /// * `width` The width of the window
+    /// * `height` The height of the window
+    ///
+    #[inline]
+    pub fn set_size(&mut self, core: &RenderingCore, width: f32, height: f32) {
+        self.box_renderer.set_window_size(core, [width, height]);
+    }
+
+    ///Inserts a new box at the box renderer
+    #[inline]
+    pub fn insert_box(&mut self, instance: ContainerInstance) -> u64 {
+        self.box_renderer.push(instance)
+    }
+
     pub fn box_renderer(&self) -> &BatchRenderer<Container> {
         &self.box_renderer
     }
 
     pub fn box_renderer_mut(&mut self) -> &mut BatchRenderer<Container> {
         &mut self.box_renderer
+    }
+
+    ///Flushes all the modifications made on every internal renderers
+    pub fn flush_modifications(&self, core: &RenderingCore) {
+        self.box_renderer().flush(core);
+        // self.image_renderer().flush(core);
     }
 
     // pub fn image_renderer(&self) -> &BatchRenderer<Image> {

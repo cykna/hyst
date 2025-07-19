@@ -1,12 +1,17 @@
-use wgpu::{RenderPass, ShaderStages, naga::ShaderStage};
+use taffy::Layout;
+use wgpu::{
+    RenderPass, ShaderStages,
+    wgt::{DrawIndexedIndirectArgs, DrawIndirectArgs},
+};
 
 use super::{
     AbstractBuffer, AbstractVecBuffer, BindGroupAndLayoutConfig, GpuImage,
     core::RenderingCore,
-    meshes::{Mesh, image::Image},
+    meshes::{Mesh, Updatable, image::Image},
     shaders::{HystConstructor, HystShader, ShaderCreationOptions, ShaderRenderMethod},
 };
 
+///A Renderer which renderes the given Mesh `M` using the least amount needed of draw calls
 pub struct BatchRenderer<M: Mesh>
 where
     M::Shader: HystConstructor,
@@ -14,8 +19,12 @@ where
     vertices: wgpu::Buffer,
     indices: wgpu::Buffer,
     shader: M::Shader,
+    indirect_buffer: wgpu::Buffer,
     instances: AbstractVecBuffer<M::Instance>,
     window_size: AbstractBuffer<[f32; 2]>,
+    len: u64,
+    cap: u64,
+    indices_count: u16,
 }
 
 impl<M> BatchRenderer<M>
@@ -33,8 +42,16 @@ where
         instances: Vec<M::Instance>,
         window_size: [f32; 2],
     ) -> Self {
+        let cap = if instances.is_empty() {
+            128
+        } else {
+            instances.len() as u64
+        };
         let window_size = AbstractBuffer::new(core, window_size, super::BufferType::Uniform);
         Self {
+            indices_count: indices.len() as u16,
+            indirect_buffer: core
+                .create_indexed_indirect_buffer(cap as usize, Some("batch renderer")),
             vertices: core.create_vertex_buffer(vertices, Some("batch renderer")),
             indices: core.create_index_buffer(indices, Some("batch renderer")),
             shader: core.create_shader(super::shaders::ShaderCreationOptions {
@@ -46,6 +63,9 @@ where
                 rendering_style: ShaderRenderMethod::TriangleCcwBack,
                 name: name.to_string(),
             }),
+
+            len: instances.len() as u64,
+            cap,
             instances: if instances.is_empty() {
                 AbstractVecBuffer::empty(core, 128)
             } else {
@@ -55,7 +75,60 @@ where
         }
     }
 
-    pub fn render(&self, rpass: &mut RenderPass) {
+    #[inline]
+    ///Flushes all the modifications made on the instances buffer
+    pub fn flush(&self, core: &RenderingCore) {
+        self.instances.write_vec(core);
+    }
+
+    ///Updates the instance on the given `index` with the given `layout`.
+    pub fn resize(&mut self, index: u64, layout: &Layout) {
+        (&mut self.instances.inner_mut()[index as usize]).update(layout);
+    }
+
+    ///Appends the given instance at the end ot the instance buffer, and returns the old length of the buffer.
+    pub fn push(&mut self, instance: M::Instance) -> u64 {
+        let len = self.len;
+        self.instances.inner_mut().push(instance);
+        self.len += 1;
+        len
+    }
+    ///Removes the last element on the instances and returns the new length.
+    ///If the length is 0 and this is executed, nothing happens
+    #[inline]
+    pub fn pop(&mut self) -> u64 {
+        if self.len == 0 {
+            return 0;
+        }
+        self.len -= 1;
+        self.len
+    }
+
+    ///Removes the element on the given index and moves the last element to its position, thus, it is required to update the element id after this operation.
+    pub fn remove(&mut self, idx: u64) -> Option<M::Instance> {
+        if self.len == 0 {
+            return None;
+        }
+        let out = self.instances.inner_mut().swap_remove(idx as usize);
+        self.len -= 1;
+        Some(out)
+    }
+
+    pub fn prepare_for(&self, indices: &Vec<u64>, core: &RenderingCore) {
+        let mut out = Vec::new();
+        for index in indices.iter().cloned() {
+            out.push(DrawIndexedIndirectArgs {
+                index_count: self.indices_count as u32,
+                instance_count: 1,
+                first_index: 0,
+                first_instance: index as u32,
+                base_vertex: 0,
+            });
+        }
+        core.write_buffer(&out, &self.indirect_buffer);
+    }
+
+    pub fn render(&self, instance_indices: Vec<u64>, rpass: &mut RenderPass) {
         rpass.set_pipeline(self.shader.pipeline());
         {
             let mut idx = 0;
@@ -67,11 +140,7 @@ where
         rpass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
         rpass.set_vertex_buffer(0, self.vertices.slice(..));
         rpass.set_vertex_buffer(1, self.instances.inner_buffer().slice(..));
-        rpass.draw_indexed(
-            0..(self.indices.size() as u32 >> 1),
-            0,
-            0..self.instances.inner().len() as u32,
-        );
+        rpass.multi_draw_indexed_indirect(&self.indirect_buffer, 0, instance_indices.len() as u32);
     }
 
     #[inline]
@@ -93,7 +162,15 @@ impl BatchRenderer<Image> {
         img: &GpuImage,
     ) -> Self {
         let window_size = AbstractBuffer::new(core, window_size, super::BufferType::Uniform);
+        let cap = if instances.is_empty() {
+            128
+        } else {
+            instances.len() as u64
+        };
         Self {
+            indices_count: indices.len() as u16,
+            indirect_buffer: core
+                .create_indexed_indirect_buffer(cap as usize, Some("batch renderer")),
             vertices: core.create_vertex_buffer(vertices, Some("batch renderer")),
             indices: core.create_index_buffer(indices, Some("batch renderer")),
             shader: core.create_shader(ShaderCreationOptions {
@@ -119,6 +196,8 @@ impl BatchRenderer<Image> {
                 name: name.to_string(),
             }),
             window_size,
+            len: instances.len() as u64,
+            cap,
             instances: if instances.is_empty() {
                 AbstractVecBuffer::empty(core, 128)
             } else {

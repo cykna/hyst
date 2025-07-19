@@ -1,8 +1,7 @@
 use super::Mesh;
-use crate::batch::{BatchRenderer, BatchSubmitter};
+use crate::GpuImage;
+use crate::batch::BatchSubmitter;
 use crate::core::RenderingCore;
-use crate::shaders::ShaderRenderMethod;
-use crate::{AbstractBuffer, BindGroupAndLayoutConfig, BufferType, GpuImage, shaders::HystShader};
 use hyst_math::Rect;
 use image::GenericImageView;
 
@@ -10,7 +9,6 @@ mod input;
 pub use input::*;
 mod shader;
 pub use shader::*;
-use taffy::{Point, Size};
 
 pub struct ImageCreationOption {
     pub rect: Rect,
@@ -47,18 +45,4 @@ impl Mesh for Image {
     type Shader = ImageShader;
     type Vertices = ImageInput;
     type Instance = Rect;
-    fn resize(
-        &mut self,
-        core: &RenderingCore,
-        renderer: &mut dyn BatchSubmitter,
-        layout: &taffy::Layout,
-    ) {
-        let Size { width, height } = layout.size;
-        self.image_instance.size_mut().set_coords(width, height);
-
-        let Point { x, y } = layout.location;
-        self.image_instance.position_mut().set_coords(x, y);
-
-        renderer.submit(core, bytemuck::bytes_of(&self.image_instance), 0);
-    }
 }

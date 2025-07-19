@@ -10,21 +10,17 @@ use hyst_math::vectors::{Rgba, Vec2f32, Vec4f32};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use wgpu::{
     Adapter, BackendOptions, Backends, BindGroup, BindGroupEntry, BindGroupLayout,
-    BindGroupLayoutEntry, Buffer, BufferDescriptor, BufferUsages, BufferUses, Device, Instance,
-    InstanceFlags, Origin3d, Queue, RenderPipeline, ShaderModule, ShaderStages, Surface,
-    SurfaceConfiguration, TextureDescriptor, TextureViewDescriptor, VertexBufferLayout,
+    BindGroupLayoutEntry, Buffer, BufferDescriptor, BufferUsages, Device, Instance, InstanceFlags,
+    Origin3d, Queue, RenderPipeline, ShaderModule, ShaderStages, Surface, SurfaceConfiguration,
+    TextureDescriptor, TextureViewDescriptor, VertexBufferLayout,
     util::{BufferInitDescriptor, DeviceExt},
+    wgt::DrawIndexedIndirectArgs,
 };
 use winit::window::Window;
 
 use crate::shaders::{HystConstructor, ShaderCreationOptions};
 
-use super::{
-    batch::BatchRenderer,
-    elements::{HystElement, HystText},
-    meshes::{Mesh, container::Container, text::Text},
-    text::TextManager,
-};
+use super::{text::TextManager, ui::DrawRequestedElements};
 
 pub struct RenderingCore {
     instance: Instance,
@@ -64,7 +60,9 @@ impl RenderingCore {
         .unwrap();
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: None,
-            required_features: wgpu::Features::POLYGON_MODE_LINE,
+            required_features: wgpu::Features::POLYGON_MODE_LINE
+                | wgpu::Features::INDIRECT_FIRST_INSTANCE
+                | wgpu::Features::MULTI_DRAW_INDIRECT,
             // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the swapchain.
             required_limits:
                 wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
@@ -341,6 +339,17 @@ impl RenderingCore {
         })
     }
 
+    ///Creates a buffer used for indexed indirect draw calls with capacity for `amount` instances
+    pub fn create_indexed_indirect_buffer(&mut self, amount: usize, label: Option<&str>) -> Buffer {
+        let buffer = self.device.create_buffer(&BufferDescriptor {
+            label,
+            size: (amount * std::mem::size_of::<DrawIndexedIndirectArgs>()) as u64,
+            mapped_at_creation: false,
+            usage: BufferUsages::INDIRECT | BufferUsages::COPY_DST,
+        });
+        buffer
+    }
+
     ///Creates an IBO with the given data and label.
     pub fn create_index_buffer(&self, data: &[u16], label: Option<&str>) -> Buffer {
         let byte_data = bytemuck::cast_slice(&data);
@@ -369,6 +378,7 @@ impl RenderingCore {
         buffer
     }
 
+    ///Creates an image and its bindgroups to be passed on the batch renderer
     pub fn create_image(&self, size: (u32, u32), data: &[u8]) -> GpuImage {
         let size3d = wgpu::Extent3d {
             width: size.0,
@@ -419,7 +429,12 @@ impl RenderingCore {
     }
 
     ///Draws everything on the screen
-    pub fn draw(&self, renderer: &crate::rendering::ui::renderer::Renderer, bg: Rgba) {
+    pub fn draw(
+        &self,
+        elements: Vec<DrawRequestedElements>,
+        renderer: &crate::rendering::ui::renderer::Renderer,
+        bg: Rgba,
+    ) {
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame
             .texture
@@ -449,7 +464,17 @@ impl RenderingCore {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            renderer.box_renderer().render(&mut render_pass);
+            for el in elements {
+                match el {
+                    DrawRequestedElements::Box(v) => {
+                        renderer.box_renderer().prepare_for(&v, self);
+                        renderer.box_renderer().render(v, &mut render_pass);
+                    }
+                    DrawRequestedElements::Img(_) => {
+                        continue; //implement later
+                    }
+                }
+            }
             self.text_renderer.draw_texts(&mut render_pass);
         }
 

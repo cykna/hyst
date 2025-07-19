@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use hyst_math::Rect;
+use hyst_math::{Rect, vectors::Vec4f32};
 use slotmap::SlotMap;
 use smol_str::SmolStr;
 use taffy::NodeId;
@@ -17,6 +17,7 @@ use crate::{
         TextCreationOption,
     },
     error::LayoutError,
+    meshes::container::ContainerInstance,
 };
 
 use super::{HystElementKey, HystTextOptions, renderer::Renderer};
@@ -74,14 +75,16 @@ impl ElementManager {
     pub fn insert_box(
         &mut self,
         layout_id: NodeId,
-        background: Background,
+        background: Vec4f32,
         rect: hyst_math::Rect,
     ) -> HystElementKey {
+        let index = self
+            .elements_renderer
+            .insert_box(ContainerInstance::new(background, rect));
         self.elements.insert_with_key(|key| {
             self.roots.push(key);
             Box::new(HystBox::new(HystBoxCreationOption {
-                background,
-                rect,
+                index,
                 parent: None,
                 style: layout_id,
                 key,
@@ -223,11 +226,12 @@ impl ElementManager {
             };
             let layout = self.layout.layout_of(parent.layout()).unwrap();
             {
-                println!("{parent:?}");
                 let parent = &mut **parent as &mut dyn Any;
                 if let Some(bx) = parent.downcast_mut::<HystBox>() {
-                    bx.resize(core, self.elements_renderer.box_renderer_mut(), layout);
-                } else if let Some(img) = parent.downcast_mut::<HystImage>() {
+                    self.elements_renderer
+                        .box_renderer_mut()
+                        .resize(bx.instance_index(), layout)
+                } else if let Some(_) = parent.downcast_mut::<HystImage>() {
                     println!("Must implement instanced drawing for images");
                     todo!()
                     //img.resize(core, self.elements_renderer.image_renderer_mut(), layout);
@@ -249,11 +253,14 @@ impl ElementManager {
     /// `height` The current height of the window
     pub fn resize_roots(&mut self, core: &RenderingCore, (width, height): (f32, f32)) {
         self.recalc_layouts(width, height);
+        self.elements_renderer.set_size(core, width, height);
         let mut idx = 0;
         while let Some(root) = self.roots.get(idx) {
             idx += 1;
             self.resize_root(core, *root);
         }
+
+        self.flush_modifications(core);
     }
 }
 
